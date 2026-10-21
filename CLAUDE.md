@@ -155,3 +155,8 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 6. Admin API: protected by `ADMIN_API_KEY`. Student session: JWT in `Authorization` header, expires in 2 hours.
 7. OTP: valid 10 minutes, max 5 attempts. Test emails are on example.org and receive nothing, so in dev nodemailer uses an Ethereal test account and the preview URL is printed to the server console (empty `SMTP_*` = Ethereal).
 8. Excel reading uses `exceljs` (not `xlsx`, which is outdated with security issues).
+9. Never write package versions from memory. Install new packages with `npm install <name>` so npm picks the current version.
+10. Duplicates: sync filters by `student_id` + `skill_id` before INSERT. Errors and duplicates go to `sync_log` with `INSERT ... ON CONFLICT DO NOTHING` (unique index on `record_id, message` where level is not `info`), so each is logged once.
+11. Student updates: sync updates `program`, `education_level`, `status`. `student_id`, name, surname, email never change (mismatch = error, §1). A `status` change alone does not create a new version.
+12. Category → stamp code mapping lives only in `constants.js` (not in the DB).
+13. Error/duplicate `sync_log` messages always contain the Sheet row number, e.g. "Row 14: missing Record ID". Rows without `record_id` are told apart by this.
