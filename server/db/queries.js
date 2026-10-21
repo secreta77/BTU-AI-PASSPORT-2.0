@@ -4,6 +4,7 @@
 // - `db` is the LAST argument. It is the shared `pool` or the client of a running transaction.
 // - Rows come back as camelCase objects. Names follow sheets/reader.js (`studentStatus`, `firstIssued`, ...),
 //   so one field has one name from the Sheet to the DB to the PDF (see docs/api.md).
+import { VERSION_STATUS } from '../shared/constants.js';
 import { pool } from './pool.js';
 
 // "first_name" -> "firstName"
@@ -174,4 +175,100 @@ export async function insertSyncLog(entries, db = pool) {
     ],
   );
   return rowCount;
+}
+
+// ---------- Issuing a new passport version ----------
+
+// Runs `work(client)` in one transaction: COMMIT if it finishes, ROLLBACK if it throws (nothing is saved).
+export async function runInTransaction(work) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await work(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    // If the rollback itself fails (lost connection), the original error is still the one to report
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// Students who have awards without a version. They need a new passport version. Sorted, so the order is stable.
+// Issue them one by one, so blockchain nonces do not collide.
+export async function findPendingStudentIds(db = pool) {
+  const { rows } = await db.query(
+    'SELECT DISTINCT student_id FROM skill_awards WHERE version_id IS NULL ORDER BY student_id',
+  );
+  return rows.map((row) => row.student_id);
+}
+
+// ALL awards of one student with their skill data: the ones already issued (versionId is set) and the new ones
+// (versionId is null). The PDF of the new version needs all of them: earlier skills are never removed.
+// Field names are the ones renderPassportPdf reads (docs/api.md). awardId goes to saveIssuedVersion.
+export async function findAwardsByStudent(studentId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT a.id AS award_id, a.record_id, a.student_id, a.skill_id,
+            k.name AS skill_name, k.category AS skill_category, k.description AS skill_description,
+            a.earned_through, a.date_earned, a.version_id
+     FROM skill_awards a
+     JOIN skills k ON k.skill_id = a.skill_id
+     WHERE a.student_id = $1
+     ORDER BY a.date_earned, a.record_id`,
+    [studentId],
+  );
+  return rows.map(toCamelCase);
+}
+
+// 1 for a passport without versions, otherwise the highest version + 1
+export async function findNextVersionNumber(passportId, db = pool) {
+  const { rows } = await db.query(
+    'SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM passport_versions WHERE passport_id = $1',
+    [passportId],
+  );
+  return rows[0].next_version;
+}
+
+// Saves one issued version. Call it ONLY after the blockchain transaction is confirmed (pipeline step 5).
+// One DB transaction: either the new version is `latest`, the old one is `superseded` and the new awards are
+// linked to it, or nothing changes and the previous latest stays. It always opens its own transaction.
+// issued: { passportId, version, verificationCode, docHash, txHash, pdfPath, awardIds }
+//   awardIds = the awards that were new in this version (versionId was null). Returns { versionId, issuedAt }.
+export async function saveIssuedVersion(issued) {
+  return runInTransaction(async (client) => {
+    // The old latest goes first: the unique index allows only one `latest` per passport at any moment
+    await client.query(
+      'UPDATE passport_versions SET status = $2 WHERE passport_id = $1 AND status = $3',
+      [issued.passportId, VERSION_STATUS.SUPERSEDED, VERSION_STATUS.LATEST],
+    );
+
+    const { rows } = await client.query(
+      `INSERT INTO passport_versions (passport_id, version, verification_code, status, doc_hash, tx_hash, pdf_path)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, issued_at`,
+      [
+        issued.passportId,
+        issued.version,
+        issued.verificationCode,
+        VERSION_STATUS.LATEST,
+        issued.docHash,
+        issued.txHash,
+        issued.pdfPath,
+      ],
+    );
+    const versionId = rows[0].id;
+
+    const linked = await client.query(
+      'UPDATE skill_awards SET version_id = $1 WHERE id = ANY($2) AND version_id IS NULL',
+      [versionId, issued.awardIds],
+    );
+    // An award that already belongs to a version must never move. If that happens, everything is rolled back.
+    if (linked.rowCount !== issued.awardIds.length) {
+      throw new Error(`Expected to link ${issued.awardIds.length} awards, but linked ${linked.rowCount}`);
+    }
+
+    return { versionId, issuedAt: rows[0].issued_at };
+  });
 }
