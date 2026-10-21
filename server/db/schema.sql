@@ -1,0 +1,1 @@
+-- PostgreSQL schema: tables, unique constraints, partial unique index for one latest version, indexes.
