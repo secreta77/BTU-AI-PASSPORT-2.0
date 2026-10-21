@@ -129,7 +129,7 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 
 ## Test data (`docs/test-data.xlsx`)
 - Sheet "Passport Skill Records": 60 records, 18 students, 16 skills (SKL-001…016).
-- Header on row 3; Technical Notes block at the bottom must be skipped.
+- Header row is found by "Student ID" in the first cell (row 4 today); Technical Notes block at the bottom must be skipped.
 - A–P: BTU input. Q–T: system-managed (Sync Status, Version, Synced At, Error).
 
 ## Open questions (organizers)
