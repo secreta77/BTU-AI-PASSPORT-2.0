@@ -2,6 +2,10 @@
 import pg from 'pg';
 import config from '../config.js';
 
+// A SQL date would become a JS Date object, and the timezone can shift the day (2026-09-12 -> 09-11).
+// We keep dates as plain "YYYY-MM-DD" text, like the Sheet reader and the PDF renderer expect.
+pg.types.setTypeParser(pg.types.builtins.DATE, (value) => value);
+
 export const pool = new pg.Pool({
   connectionString: config.databaseUrl,
   // Supabase only accepts encrypted connections. The traffic is still encrypted with this setting;
