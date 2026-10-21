@@ -8,7 +8,7 @@ Google Sheets → sync → validate → PDF → SHA-256 → blockchain → DB le
 
 ## Setup
 1. `cd server && npm install`
-2. Copy `.env.example` to `server/.env` and fill in the values
+2. Copy `server/.env.example` to `server/.env` and fill in the values
 3. Run `server/db/schema.sql` on the PostgreSQL database
 4. `npm run dev`
 
