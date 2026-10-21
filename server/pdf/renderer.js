@@ -3,14 +3,18 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import QRCode from 'qrcode';
+import { config } from '../config.js';
 import { STAMP_CODE_BY_CATEGORY } from '../shared/constants.js';
 import { formatDate } from '../shared/format.js';
-import { wrapText } from './textWrap.js';
+import { fitTextToCell, wrapText } from './textWrap.js';
 import { BACKDROP_COLOR, PAGE_1, PAGE_3, PAGE_4, PASSPORT_ID_FOOTER, TEXT_COLOR } from './layout.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = path.join(currentDir, 'assets/template/Passport_Blank.pdf');
 const STAMPS_DIR = path.join(currentDir, 'assets/stamps');
+// Index of each page in Passport_Blank.pdf
+const TEMPLATE_PAGE = { COVER: 0, INFO: 1, STAMP_CARDS: 2, TABLE: 3 };
 const EARNED_THROUGH_PLACEHOLDER = '—';
 // Fraction of font size used to center text vertically on a baseline
 const HALF_CAP_HEIGHT = 0.35;
@@ -34,7 +38,8 @@ async function loadStampBytes(stampCode) {
 
 // student: { firstName, lastName, passportId, firstIssued }
 // awards: rows from the reader (skillName, skillCategory, skillDescription, dateEarned, recordId)
-export async function renderPassportPdf(student, awards) {
+// verificationCode: created by the issuance pipeline, the renderer only draws it
+export async function renderPassportPdf(student, awards, verificationCode) {
   const doc = await PDFDocument.load(await loadTemplateBytes());
   const fonts = {
     regular: await doc.embedFont(StandardFonts.Helvetica),
@@ -42,14 +47,57 @@ export async function renderPassportPdf(student, awards) {
   };
   const sortedAwards = sortAwardsOldestFirst(awards);
   const stamps = await embedStamps(doc, sortedAwards);
-  const pages = doc.getPages();
 
-  drawPage1(pages[0], student, fonts);
-  drawPage3(pages[2], sortedAwards, fonts, stamps);
-  drawPage4(pages[3], sortedAwards, fonts, stamps);
-  pages.forEach((page, index) => drawPassportIdFooter(page, index, student.passportId, fonts));
+  const stampCardGroups = chunk(sortedAwards, PAGE_3.maxCards);
+  const tableRowGroups = chunk(sortedAwards, PAGE_4.maxRows);
+  const pageEntries = await buildPageEntries(doc, stampCardGroups.length, tableRowGroups.length);
+
+  await drawPage1(doc, pageEntries[0].page, student, verificationCode, fonts);
+  stampCardGroups.forEach((group, index) => {
+    drawPage3(findPages(pageEntries, TEMPLATE_PAGE.STAMP_CARDS)[index], group, fonts, stamps);
+  });
+  tableRowGroups.forEach((group, index) => {
+    drawPage4(findPages(pageEntries, TEMPLATE_PAGE.TABLE)[index], group, fonts, stamps);
+  });
+  pageEntries.forEach((entry) => {
+    drawPassportIdFooter(entry.page, entry.templateIndex, student.passportId, fonts);
+  });
 
   return doc.save();
+}
+
+// Template pages are copied while they are still empty, so copies carry no drawn content.
+// Result order: page 1, page 2, stamp card pages, table pages.
+// Each entry remembers its template page, because the footer position depends on it.
+async function buildPageEntries(doc, stampPageCount, tablePageCount) {
+  for (let copyNumber = 1; copyNumber < stampPageCount; copyNumber++) {
+    const [copy] = await doc.copyPages(doc, [TEMPLATE_PAGE.STAMP_CARDS]);
+    doc.insertPage(TEMPLATE_PAGE.TABLE + copyNumber - 1, copy);
+  }
+  for (let copyNumber = 1; copyNumber < tablePageCount; copyNumber++) {
+    const [copy] = await doc.copyPages(doc, [TEMPLATE_PAGE.TABLE + Math.max(stampPageCount - 1, 0)]);
+    doc.addPage(copy);
+  }
+
+  const templateIndexes = [
+    TEMPLATE_PAGE.COVER,
+    TEMPLATE_PAGE.INFO,
+    ...Array(Math.max(stampPageCount, 1)).fill(TEMPLATE_PAGE.STAMP_CARDS),
+    ...Array(Math.max(tablePageCount, 1)).fill(TEMPLATE_PAGE.TABLE),
+  ];
+  return doc.getPages().map((page, index) => ({ page, templateIndex: templateIndexes[index] }));
+}
+
+function findPages(pageEntries, templateIndex) {
+  return pageEntries.filter((entry) => entry.templateIndex === templateIndex).map((entry) => entry.page);
+}
+
+function chunk(items, size) {
+  const groups = [];
+  for (let start = 0; start < items.length; start += size) {
+    groups.push(items.slice(start, start + size));
+  }
+  return groups;
 }
 
 // Oldest first, so a newly earned skill is always added at the end
@@ -74,10 +122,29 @@ async function embedStamps(doc, awards) {
   return stamps;
 }
 
-function drawPage1(page, student, fonts) {
+async function drawPage1(doc, page, student, verificationCode, fonts) {
   drawText(page, student.firstName, fonts.regular, PAGE_1.name);
   drawText(page, student.lastName, fonts.regular, PAGE_1.surname);
   drawText(page, formatDate(student.firstIssued), fonts.regular, PAGE_1.date);
+  await drawVerificationBlock(doc, page, verificationCode, fonts);
+}
+
+function buildVerifyUrl(verificationCode) {
+  return `${config.publicBaseUrl}/verify/${verificationCode}`;
+}
+
+// QR with a link to the public verify page, and the code as text next to it
+async function drawVerificationBlock(doc, page, verificationCode, fonts) {
+  const qrBytes = await QRCode.toBuffer(buildVerifyUrl(verificationCode), {
+    margin: 1,
+    errorCorrectionLevel: 'M',
+    width: 300,
+  });
+  const qrImage = await doc.embedPng(qrBytes);
+  page.drawImage(qrImage, { x: PAGE_1.qr.x, y: PAGE_1.qr.y, width: PAGE_1.qr.size, height: PAGE_1.qr.size });
+
+  drawText(page, 'VERIFICATION CODE:', fonts.regular, { ...PAGE_1.verificationLabel });
+  drawText(page, verificationCode, fonts.bold, { ...PAGE_1.verificationCode });
 }
 
 function drawPassportIdFooter(page, pageIndex, passportId, fonts) {
@@ -88,9 +155,7 @@ function drawPassportIdFooter(page, pageIndex, passportId, fonts) {
 }
 
 function drawPage3(page, awards, fonts, stamps) {
-  warnIfTooMany(awards.length, PAGE_3.maxCards, 'page 3');
-
-  awards.slice(0, PAGE_3.maxCards).forEach((award, index) => {
+  awards.forEach((award, index) => {
     const card = PAGE_3.cards[index];
 
     drawCenteredLine(page, formatDate(award.dateEarned), fonts.regular, PAGE_3.date.size, card.centerX, card.top - PAGE_3.date.offset);
@@ -112,14 +177,15 @@ function drawPage3(page, awards, fonts, stamps) {
 }
 
 function drawPage4(page, awards, fonts, stamps) {
-  warnIfTooMany(awards.length, PAGE_4.maxRows, 'page 4');
-
-  awards.slice(0, PAGE_4.maxRows).forEach((award, index) => {
+  awards.forEach((award, index) => {
     const centerY = PAGE_4.rowCenters[index];
 
+    drawBackdrop(page, PAGE_4.stamp.centerX, centerY, PAGE_4.backdrop);
     drawStamp(page, stamps.get(award.skillCategory), PAGE_4.stamp.centerX, centerY, PAGE_4.stamp.width);
-    drawWrappedCentered(page, award.skillName.toUpperCase(), fonts.bold, PAGE_4.skill, centerY);
-    drawWrappedCentered(page, award.skillDescription.toUpperCase(), fonts.regular, PAGE_4.description, centerY);
+    const skillFits = drawWrappedCentered(page, award.skillName.toUpperCase(), fonts.bold, PAGE_4.skill, centerY);
+    const descriptionFits = drawWrappedCentered(page, award.skillDescription.toUpperCase(), fonts.regular, PAGE_4.description, centerY);
+    warnIfNotFitting(skillFits, award, 'skill name');
+    warnIfNotFitting(descriptionFits, award, 'description');
     drawWrappedCentered(page, EARNED_THROUGH_PLACEHOLDER, fonts.regular, PAGE_4.earnedThrough, centerY);
     drawCenteredLine(
       page,
@@ -158,25 +224,30 @@ function drawCenteredLine(page, text, font, size, centerX, baselineY) {
   drawText(page, text, font, { x: centerX - width / 2, y: baselineY, size });
 }
 
-// Wraps text to the column width and centers the whole block vertically on centerY
+// Fits the text into the row (smaller font if needed) and centers the block vertically on centerY.
+// Returns false when the text does not fit even at the smallest font size.
 function drawWrappedCentered(page, text, font, column, centerY) {
-  const lines = wrapText(text, font, column.size, column.maxWidth);
-  const blockHeight = (lines.length - 1) * column.lineHeight;
-  let baseline = centerY + blockHeight / 2 - column.size * HALF_CAP_HEIGHT;
+  const fitted = fitTextToCell(text, font, {
+    ...column,
+    minSize: PAGE_4.minFontSize,
+    maxHeight: PAGE_4.cellMaxHeight,
+  });
+  const blockHeight = (fitted.lines.length - 1) * fitted.lineHeight;
+  let baseline = centerY + blockHeight / 2 - fitted.size * HALF_CAP_HEIGHT;
 
-  for (const line of lines) {
-    drawCenteredLine(page, line, font, column.size, column.centerX, baseline);
-    baseline -= column.lineHeight;
+  for (const line of fitted.lines) {
+    drawCenteredLine(page, line, font, fitted.size, column.centerX, baseline);
+    baseline -= fitted.lineHeight;
+  }
+  return fitted.fits;
+}
+
+function warnIfNotFitting(fits, award, fieldName) {
+  if (!fits) {
+    console.warn(`Warning: ${award.studentId} "${award.skillName}": ${fieldName} does not fit its cell at ${PAGE_4.minFontSize}pt.`);
   }
 }
 
 function toPdfColor({ r, g, b }) {
   return rgb(r / 255, g / 255, b / 255);
-}
-
-// Page duplication is not implemented yet, so extra skills are skipped
-function warnIfTooMany(count, max, pageName) {
-  if (count > max) {
-    console.warn(`Warning: ${count} skills but ${pageName} fits ${max}; the rest are not drawn yet.`);
-  }
 }
