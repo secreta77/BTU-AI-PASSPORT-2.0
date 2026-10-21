@@ -122,7 +122,7 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 - 4 pages, A4 landscape (841.89 × 595.28 pt), no form fields — draw by coordinates.
 - p1: NAME, SURNAME, DATE, PASSPORT ID · p2: static · p3: 10 stamp slots (2×5), duplicate page if >10 · p4: table with 5 rows (Stamp Type, Skill, Description, Earned Through, Date Earned), duplicate page if >5 (test data max is 6).
 - pdf-lib has no text wrapping → `textWrap.js`.
-- No place for Verification Code/QR in the template → add in the bottom bar next to PASSPORT ID.
+- No place for Verification Code/QR in the template → page 1, in the empty space under SURNAME (QR on the left, `VERIFICATION CODE:` text next to it). QR link: `{PUBLIC_BASE_URL}/verify/{code}`.
 - Font Gilroy (commercial) → temporary Google Font until BTU provides it.
 - Stamps: BDG-AI-001 = AI Skill (red triangle), BDG-AI-002 = AI Applied Skill (purple), BDG-AI-003 = AI Advanced Skill (navy circle).
 - Visual reference: `docs/design/filled-page-1..4.png`, `blank-page-1..4.png`.
@@ -135,7 +135,7 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 ## Open questions (organizers)
 1. "Earned Through" data is missing in the Excel.
 2. docx mentions 3 sheets + CONFIRMED status; Excel has 1 sheet without status.
-3. Where to place Verification Code/QR on the template?
+3. Verification Code/QR placement (page 1, under SURNAME) — our proposal, confirm with BTU.
 4. Gilroy font files and stamps as SVG.
 5. "SYNCED" rows have no real blockchain proof — re-issue V1 for everyone on first run?
 
@@ -162,3 +162,4 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 13. Error/duplicate `sync_log` messages always contain the Sheet row number, e.g. "Row 14: missing Record ID". Rows without `record_id` are told apart by this.
 14. Git commits: never add `Co-Authored-By` or "Generated with Claude Code" lines. Commit message = short English description only.
 15. Git workflow: never commit to main directly. One feature branch per task (`feature/<name>`), start from up-to-date main, push the branch, merge via GitHub Pull Request.
+16. `server/config.js` is the only place that reads `.env` (loaded by the server folder, so scripts run from any directory). It does not fail on empty values: the module that needs a value checks it itself. Teammates only import `config`, they do not change the file.
