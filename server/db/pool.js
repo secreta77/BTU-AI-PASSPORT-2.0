@@ -1,6 +1,11 @@
 // Creates one pg Pool from DATABASE_URL and exports it.
 import pg from 'pg';
-import config from '../config.js';
+import { config } from '../config.js';
+
+// config.js does not fail on empty values, so this module checks the one it needs
+if (!config.databaseUrl) {
+  throw new Error('DATABASE_URL is empty. Fill it in server/.env (see server/.env.example).');
+}
 
 export const pool = new pg.Pool({
   connectionString: config.databaseUrl,
