@@ -15,7 +15,7 @@ Google Sheets → sync → validate → PDF → SHA-256 → blockchain → DB le
 ## Structure
 - `server/` backend (Express, PostgreSQL, pdf-lib, ethers)
 - `contracts/` Solidity registry
-- `scripts/` demo helpers (`tamper-pdf.js`)
+- `server/scripts/` demo helpers (`tamper-pdf.js`, `check-sheet.js`)
 - `client/` Angular app
 - `docs/` task, demo scenarios, design
 

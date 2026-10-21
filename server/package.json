@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "sync": "node sync/syncService.js"
+    "sync": "node sync/syncService.js",
+    "check-sheet": "node scripts/check-sheet.js"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

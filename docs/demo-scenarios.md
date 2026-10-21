@@ -23,4 +23,4 @@
 - სცენარი 4 (დავალების მაგალითი): BTU-AI-000125, Giorgi Kapanadze.
 - სცენარი 1: Sheets-ში ახალი სტრიქონი ახალი Student ID-ით, Passport ID-ის გარეშე.
 - სცენარი 6: სტრიქონი არარსებული Student ID-ით, მაგ. BTU-T-9999.
-- სცენარი 10: `scripts/tamper-pdf.js`, რომელიც ოფიციალურ PDF-ში სახელს ცვლის.
+- სცენარი 10: `server/scripts/tamper-pdf.js`, რომელიც ოფიციალურ PDF-ში სახელს ცვლის.

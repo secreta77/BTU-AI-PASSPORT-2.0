@@ -142,7 +142,7 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 ## Roles
 - Giorgi: `client/` (verify, student, admin), `server/pdf/layout.js`, presentation visuals
 - Backend: `server/sheets`, `server/sync`, `server/db`, `server/passport`
-- Blockchain: `contracts/`, `server/chain`, `docs/architecture.md`
+- Blockchain: `contracts/`, `server/chain`, `server/scripts/tamper-pdf.js`, `docs/architecture.md`
 
 ## Decisions
 1. New vs invalid student:
@@ -151,7 +151,7 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 2. Bootstrap (first run only): import existing Passport IDs and First Issued dates from the sheet as-is, issue a fresh V1 on chain for each student.
 3. Demo scenarios 7 and 8 are two aspects of one sync (one new version per student per sync).
 4. Blockchain reads: config with 2–3 public RPC URLs and fallback; the verify page shows an Etherscan tx link.
-5. `scripts/tamper-pdf.js` belongs to the Blockchain role.
+5. `server/scripts/tamper-pdf.js` belongs to the Blockchain role.
 6. Admin API: protected by `ADMIN_API_KEY`. Student session: JWT in `Authorization` header, expires in 2 hours.
 7. OTP: valid 10 minutes, max 5 attempts. Test emails are on example.org and receive nothing, so in dev nodemailer uses an Ethereal test account and the preview URL is printed to the server console (empty `SMTP_*` = Ethereal).
 8. Excel reading uses `exceljs` (not `xlsx`, which is outdated with security issues).
