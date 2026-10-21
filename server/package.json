@@ -16,11 +16,14 @@
     "ethers": "^6.13.0",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
-    "googleapis": "^144.0.0",
+    "googleapis": "^187.0.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.9.15",
+    "nodemailer": "^10.1.7",
     "pdf-lib": "^1.17.1",
     "pg": "^8.13.0",
     "qrcode": "^1.5.4"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }
