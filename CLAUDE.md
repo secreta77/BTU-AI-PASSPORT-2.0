@@ -140,9 +140,9 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 5. "SYNCED" rows have no real blockchain proof — re-issue V1 for everyone on first run?
 
 ## Roles
-- Giorgi: `client/` (verify, student, admin), `server/pdf/layout.js`, presentation visuals
-- Backend: `server/sheets`, `server/sync`, `server/db`, `server/passport`
-- Blockchain: `contracts/`, `server/chain`, `server/scripts/tamper-pdf.js`, `docs/architecture.md`
+- Giorgi: `server/pdf/`, `contracts/`, `server/chain/`, `client/` (Angular), `server/scripts/tamper-pdf.js`
+- Teammate: `server/db/`, `server/sheets/`, `server/sync/`, `server/passport/`, `server/storage/`, `server/auth/`, `server/routes/`, `docs/api.md`
+- Shared interfaces: `renderPassportPdf(student, awards, verificationCode)` → bytes (target contract; `verificationCode` is added in the QR step); `chainService.issue(codeHash, docHash, version)` → txHash; API shapes in `docs/api.md`.
 
 ## Decisions
 1. New vs invalid student:
@@ -160,3 +160,5 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 11. Student updates: sync updates `program`, `education_level`, `status`. `student_id`, name, surname, email never change (mismatch = error, §1). A `status` change alone does not create a new version.
 12. Category → stamp code mapping lives only in `constants.js` (not in the DB).
 13. Error/duplicate `sync_log` messages always contain the Sheet row number, e.g. "Row 14: missing Record ID". Rows without `record_id` are told apart by this.
+14. Git commits: never add `Co-Authored-By` or "Generated with Claude Code" lines. Commit message = short English description only.
+15. Git workflow: never commit to main directly. One feature branch per task (`feature/<name>`), start from up-to-date main, push the branch, merge via GitHub Pull Request.
