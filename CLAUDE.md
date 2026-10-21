@@ -1,0 +1,145 @@
+# BTU AI Skills Digital Passport — Hackathon MVP
+
+## Context
+BTU hackathon: working MVP of the AI Skills Digital Passport.
+Deadlines: mentor review Oct 26 11:00 · presentation Oct 28 17:00 · Demo Day Oct 30 (2026).
+Jury checks 14 scenarios: `docs/demo-scenarios.md`. This file is the summary of the task — treat it as the source of truth.
+
+## Token budget (Pro plan, shared weekly limit) — IMPORTANT
+- Do NOT read `docs/task.md` in full (large, Georgian). Use this file; open task.md only with grep for a specific section when needed.
+- Read `docs/design/` images and PDFs ONLY when working on UI or PDF layout, and only the page you need.
+- Never scan the whole repo. Open only files relevant to the current step.
+- Do not re-read files already read in this session unless they changed.
+- Keep answers short. Show only changed parts of code in explanations, not whole files.
+- Do not run long/expensive commands (full builds, installs) without asking.
+
+## How to work with Giorgi
+- Reply in Georgian, short and simple. Technical terms, code and code comments in English.
+- One small step at a time (1–3 files). For bigger tasks first list the steps and wait.
+- Before writing code: explain the problem and approach, wait for approval. Always ask before changing existing code.
+- Minimal, targeted changes. No broad rewrites.
+- No new npm packages without approval and a reason.
+- Giorgi is learning Angular (STEP course). After each step reply in this format, then STOP:
+  1. რა გავაკეთე — 1–2 sentences
+  2. ფაილები — created/changed
+  3. როგორ მუშაობს — main idea in plain words
+  4. როგორ შევამოწმო — exact command or action
+
+## Code quality
+**KISS:** readable for a beginner; no clever one-liners; functions do one thing, ~40 lines max; descriptive names (`findLatestVersion`); early returns; comments explain WHY. YAGNI: only what the task and demo scenarios need.
+**DRY:** one piece of logic lives in one place; extract on real repetition, but do not force-merge code with different purposes. Single sources of truth:
+- statuses (`latest`, `superseded`, `SYNCED`, `NOT SYNCED`, 4 verify results), badge codes, ID formats → `server/shared/constants.js` and `client/src/app/core/constants.ts` (no magic strings)
+- models/types → `core/models/`
+- PDF coordinates → only `server/pdf/layout.js`
+- colors, spacing, breakpoints → only `styles/_variables.scss`, `_mixins.scss`
+- API URLs → only `ApiService` + `environment.ts`
+- validation → only `server/sheets/validator.js`
+- one API error format `{ error: { code, message } }` via one error middleware
+**Sensible optimization:**
+- Read the Google Sheet once per sync (one call); write back Q–T with `batchUpdate`.
+- Filter new records with one query (`WHERE record_id = ANY($1)`), not one query per row.
+- Several new skills for one student in one sync = ONE new version (fewer PDFs and blockchain txs). Key scalability argument.
+- Load PDF template, fonts, stamps into memory once (cache).
+- Process students sequentially so blockchain nonces don't collide.
+- Angular: lazy-load features; load `ethers` only in the verify feature; always `track` in `@for`.
+
+## Stack
+- Backend: Node.js + Express
+- Sheets: `googleapis` + Service Account (key in `credentials/`, gitignored). Reader supports local xlsx too (same output shape).
+- Database: **PostgreSQL** (organizers' requirement). Hosted on Supabase, but plain Postgres code: `pg` (node-postgres) + `DATABASE_URL`, standard SQL in `server/db/schema.sql`. Do not use Supabase JS client for DB.
+- Storage: Supabase Storage for issued PDFs
+- Student auth: own email OTP with `otp_codes` table
+- PDF: `pdf-lib` + `@pdf-lib/fontkit` on `server/pdf/assets/template/Passport_Blank.pdf`
+- Blockchain: Solidity `contracts/PassportRegistry.sol`, testnet (Sepolia or Polygon Amoy), `ethers` v6
+- Frontend: Angular 21 in `client/`, SCSS
+  - standalone components, new control flow (`@if`, `@for`)
+  - zoneless (v21 default): put every async result (fetch, ethers, crypto.subtle) into a signal or the view won't update
+  - state with signals; RxJS only at HttpClient level
+  - simple reactive forms; NOT Signal Forms (experimental)
+  - only Router, HttpClient, `studentGuard`, `authInterceptor`; NO NgRx, Angular Material, other UI libs, Tailwind
+  - routes: `/verify`, `/verify/:code` (QR target), `/login`, `/my-passport` (guard), `/admin`
+
+## Frontend architecture: core / shared / features (mandatory)
+```
+client/src/app/
+├── core/      services (providedIn root), guards, interceptors, models, constants, layout (header/footer)
+├── shared/    reusable dumb UI: components (input()/output(), no HTTP, no own state), pipes, directives
+├── features/  verify/, student/, admin/ — each lazy-loaded
+└── styles/    _variables.scss, _mixins.scss, _base.scss
+```
+Dependencies: features → shared, core. shared → core/models only. Features never import each other; shared needs go to shared/ or core/. Before creating a file, say which layer and why.
+
+## Styling rules (mandatory)
+- Mobile-first; larger screens via `min-width` mixins (480, 768, 1024, 1280px only from `_mixins.scss`).
+- Must not break at 320px: no horizontal scroll, no overflowing text, buttons visible. Check 320/375/768/1024/1440.
+- No fixed px widths on containers: `width: 100%` + `max-width`; images `max-width: 100%`.
+- Long values (hashes, codes) and tables: `overflow-x: auto` wrapper or `word-break: break-all`.
+- Units: rem for spacing and font-size; px only for borders/1–2px details.
+- margin/padding never above `4rem`; spacing scale: 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4rem. No large rem values (5rem+), also for gaps/heights.
+- Font sizes: body 0.875–1.125rem, headings max 2.5rem (`clamp(1.5rem, 4vw, 2.5rem)`).
+- Layout only with flexbox/grid. `position: absolute/fixed/sticky` only where unavoidable (modal, dropdown, tooltip, sticky header, badge) with a comment why. Never for alignment/spacing.
+- No `!important`, no inline styles. Prefer CSS-only solutions.
+- Colors/fonts/spacing only from SCSS variables. BTU palette: orange #FF6B00, dark #2B2B2B, light gray cards, stamp colors (red, purple, navy, green, pink).
+
+## System flow
+Google Sheets (BTU adds verified skills) → sync by Record ID → validate → find student/passport → generate PDF → SHA-256 → anchor on chain → mark version latest → write Q–T back to Sheet.
+
+## Issuance pipeline — keep this order
+1. Generate Verification Code (e.g. `BTU-V-7F3K-92QX`), different from Passport ID.
+2. Render PDF with the code + QR.
+3. SHA-256 of the final PDF bytes.
+4. `issue(codeHash, docHash, version)` on the contract from the BTU issuer wallet.
+5. Only after tx confirmation: new version = `latest`, previous = `superseded`. On failure the previous latest stays.
+6. Store PDF in Storage; never regenerate an issued PDF (hash would change).
+7. Write Q–T in the Sheet: SYNCED / version / time / error.
+
+## Critical rules
+- Idempotency: `record_id` UNIQUE; a record is never processed twice.
+- One student = one permanent Passport ID (`BTU-AI-000NNN`); new students get one from the system, written to all their Sheet rows.
+- Name, surname, Passport ID, first issue date never change. Earlier skills are never removed.
+- Unknown Student ID or incomplete row (A–M, O–Q required) → stop, log to `sync_log` and column T.
+- If a status column exists, only `CONFIRMED` goes into the passport; `PENDING`/`REJECTED` ignored.
+- No personal data on chain — hashes only.
+- Secrets (wallet key, Google credentials, `DATABASE_URL`, Supabase keys) only in `.env` (gitignored); `.env.example` with empty values.
+- Never trust Sheet status for verification; source of truth = DB ledger + blockchain.
+
+## PostgreSQL rules
+- Uniqueness in DB: `skill_awards.record_id`, `passports.student_id`, `passport_versions.verification_code`, `(passport_id, version)`.
+- Only one `latest` per passport: partial unique index `WHERE status = 'latest'`.
+- Switching latest/superseded happens in one transaction (`BEGIN … COMMIT`, `ROLLBACK` on error).
+- Parameterized queries only (`$1, $2`). No string-built SQL.
+- `timestamptz` (UTC); indexes on `student_id`, `passport_id`, `verification_code`.
+- Old versions and `sync_log` are never deleted.
+
+## Public verification (no login)
+- Enter code → record exists? issuer = BTU? latest or not?
+- Upload PDF → hash in browser (`crypto.subtle`), compared with the contract read directly from the browser via public RPC.
+- 4 results: ✅ authentic + latest / 🟡 authentic, outdated / ❌ modified / ❓ unknown code. "Record exists" and "this file is authentic" shown separately.
+- Show no personal data beyond what verification needs.
+- Issuer identity: only the BTU wallet can write to the contract; its address is published in `client/public/.well-known/btu-issuer.json` (did:web style); verification compares both.
+
+## PDF template (Passport_Blank.pdf)
+- 4 pages, A4 landscape (841.89 × 595.28 pt), no form fields — draw by coordinates.
+- p1: NAME, SURNAME, DATE, PASSPORT ID · p2: static · p3: 10 stamp slots (2×5), duplicate page if >10 · p4: table with 5 rows (Stamp Type, Skill, Description, Earned Through, Date Earned), duplicate page if >5 (test data max is 6).
+- pdf-lib has no text wrapping → `textWrap.js`.
+- No place for Verification Code/QR in the template → add in the bottom bar next to PASSPORT ID.
+- Font Gilroy (commercial) → temporary Google Font until BTU provides it.
+- Stamps: BDG-AI-001 = AI Skill (red triangle), BDG-AI-002 = AI Applied Skill (purple), BDG-AI-003 = AI Advanced Skill (navy circle).
+- Visual reference: `docs/design/filled-page-1..4.png`, `blank-page-1..4.png`.
+
+## Test data (`docs/test-data.xlsx`)
+- Sheet "Passport Skill Records": 60 records, 18 students, 16 skills (SKL-001…016).
+- Header on row 3; Technical Notes block at the bottom must be skipped.
+- A–P: BTU input. Q–T: system-managed (Sync Status, Version, Synced At, Error).
+
+## Open questions (organizers)
+1. "Earned Through" data is missing in the Excel.
+2. docx mentions 3 sheets + CONFIRMED status; Excel has 1 sheet without status.
+3. Where to place Verification Code/QR on the template?
+4. Gilroy font files and stamps as SVG.
+5. "SYNCED" rows have no real blockchain proof — re-issue V1 for everyone on first run?
+
+## Roles
+- Giorgi: `client/` (verify, student, admin), `server/pdf/layout.js`, presentation visuals
+- Backend: `server/sheets`, `server/sync`, `server/db`, `server/passport`
+- Blockchain: `contracts/`, `server/chain`, `docs/architecture.md`
