@@ -36,7 +36,8 @@ The page combines this answer with the contract read in the browser (see "Result
 }
 ```
 - `status`: `latest` or `superseded`. `latestVersion` is the newest version of the same passport.
-- `rpcUrls` comes from `RPC_URLS` in `server/.env` and is sent to the browser, so it must contain only public URLs without keys.
+- `chain` comes from `config.chain`: `chainId`, `contractAddress` and `rpcUrls` = `config.chain.publicRpcUrls` (`PUBLIC_RPC_URLS` in `server/.env`).
+- `rpcUrls` is sent to the browser, so it must contain only public URLs without keys. Never send `RPC_URLS` (`config.chain.rpcUrls`): it is for the server only and may contain keys.
 - Errors: `400 INVALID_CODE_FORMAT`, `404 CODE_NOT_FOUND`.
 
 **Result logic (client).** `404` → `UNKNOWN_CODE`. With an uploaded PDF: its SHA-256 differs from the contract `docHash` → `MODIFIED`; equal and `status` is `latest` → `AUTHENTIC_LATEST`; equal and `superseded` → `AUTHENTIC_OUTDATED`. Without a PDF the page only shows that the record exists.
@@ -217,7 +218,7 @@ Hash rules (one for all):
 - `codeHash`, `docHash` and `passportRef` are 64 lowercase hex characters with **no `0x`** (same as DB `doc_hash`). `chainService` adds `0x` for the contract and removes it again on the way back. `txHash` is `0x` + 64 hex (same as DB `tx_hash`).
 - `codeHash` = SHA-256 of the verification code text (UTF-8, e.g. `BTU-V-7F3K-92QX`). `docHash` = SHA-256 of the final PDF bytes. The browser computes both with `crypto.subtle`, so it finds the same record the server wrote.
 - `passportRef` = keccak256 of `passportId + PASSPORT_REF_SALT` (text, UTF-8), computed by the server, e.g. `ethers.id(passportId + salt)` without the `0x`. The chain stores only this hash, never the Passport ID. The salt is a secret from `server/.env`: it never leaves the server and must never change, otherwise old records can no longer be matched to their passport. The browser does not compute `passportRef`, it only reads it from the contract.
-- `PASSPORT_REF_SALT` is a new `.env` variable. Giorgi adds it to `server/.env.example`, `server/config.js` and CLAUDE.md.
+- The salt is `PASSPORT_REF_SALT` in `server/.env`, read as `config.passportRefSalt`.
 
 ## renderPassportPdf(student, awards, verificationCode) → Promise<Uint8Array>
 `server/pdf/` (Giorgi). Called by `server/passport/` (Teammate). Async because `pdf-lib` is async.
@@ -241,7 +242,8 @@ verificationCode = 'BTU-V-7F3K-92QX'
 `server/chain/` (Giorgi). Called by `server/passport/` (Teammate), step 4 of the issuance pipeline.
 - `passportRef` ties the record to its passport without putting the Passport ID on chain (see hash rules).
 - `version`: integer, 1 or more.
-- Resolves **only after the transaction is confirmed**. Throws if it reverts, times out or the RPC fails; the caller then keeps the previous `latest` (pipeline step 5).
+- Resolves **only after the transaction is confirmed** (1 confirmation, 120 s timeout). Throws if it reverts, times out or the RPC fails; the caller then keeps the previous `latest` (pipeline step 5).
+- A timeout error ends with `txHash: 0x…`: the transaction may still be confirmed later. Before sending the same record again, the caller checks `getRecord(codeHash)`. If the record exists and its `docHash` matches, the issue worked and is not sent again.
 - Called one student at a time, so nonces do not collide.
 
 ## chainService.getRecord(codeHash) → Promise<{ docHash, passportRef, version, timestamp, exists } | null>
