@@ -223,6 +223,19 @@ export async function findAwardsByStudent(studentId, db = pool) {
   return rows.map(toCamelCase);
 }
 
+// For records that are in an issued version: which version and when. Records without a version are not in the result.
+// The sync writes this back to the Sheet (SYNCED / V1 / time). Returns [{ recordId, version, issuedAt }]
+export async function findIssuedVersionsByRecordIds(recordIds, db = pool) {
+  const { rows } = await db.query(
+    `SELECT a.record_id, v.version, v.issued_at
+     FROM skill_awards a
+     JOIN passport_versions v ON v.id = a.version_id
+     WHERE a.record_id = ANY($1)`,
+    [recordIds],
+  );
+  return rows.map(toCamelCase);
+}
+
 // 1 for a passport without versions, otherwise the highest version + 1
 export async function findNextVersionNumber(passportId, db = pool) {
   const { rows } = await db.query(

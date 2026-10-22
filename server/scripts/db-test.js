@@ -10,6 +10,7 @@ import {
   findActiveOtp,
   findAwardsByStudent,
   findIssuedSkillsByStudent,
+  findIssuedVersionsByRecordIds,
   findStudentByEmail,
   findStudentPassport,
   findSyncLog,
@@ -154,6 +155,14 @@ try {
   await issueVersion(2, CODE_V2, 'TEST-REC-2');
 
   console.log('After version 2');
+  await check('findIssuedVersionsByRecordIds: version and time per issued record, unknown record left out', async () => {
+    const found = await findIssuedVersionsByRecordIds(['TEST-REC-1', 'TEST-REC-2', 'TEST-REC-UNKNOWN']);
+    const byRecord = new Map(found.map((item) => [item.recordId, item]));
+    assert.equal(found.length, 2);
+    assert.equal(byRecord.get('TEST-REC-1').version, 1);
+    assert.equal(byRecord.get('TEST-REC-2').version, 2);
+    assert.ok(byRecord.get('TEST-REC-2').issuedAt instanceof Date);
+  });
   await check('findVersionByCode: v1 is superseded, latestVersion is 2', async () => {
     const found = await findVersionByCode(CODE_V1);
     assert.equal(found.status, 'superseded');
