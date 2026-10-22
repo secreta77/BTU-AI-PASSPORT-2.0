@@ -199,6 +199,7 @@ Before the first run: `startedAt`, `finishedAt` and `summary` are `null`. If the
 | 401 | `UNAUTHORIZED` | missing, invalid or expired student token / admin key |
 | 401 | `INVALID_OTP` | wrong code, unknown email, or no code requested |
 | 401 | `OTP_EXPIRED` | the code is older than 10 minutes |
+| 404 | `NOT_FOUND` | no such endpoint (wrong path or method) |
 | 404 | `CODE_NOT_FOUND` | verification code is not in the ledger |
 | 404 | `PASSPORT_NOT_FOUND` | no passport for this student / passport ID |
 | 404 | `VERSION_NOT_FOUND` | passport has no such version |
@@ -206,7 +207,7 @@ Before the first run: `startedAt`, `finishedAt` and `summary` are `null`. If the
 | 429 | `OTP_LOCKED` | 5 wrong attempts for this code |
 | 500 | `INTERNAL_ERROR` | anything unexpected; the message is generic, details go to the server log |
 
-The codes live in `server/shared/constants.js` (`ERROR_CODE`), added together with the error middleware.
+The codes live in `server/shared/constants.js` (`ERROR_CODE`).
 
 ---
 
