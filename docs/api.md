@@ -214,38 +214,43 @@ The codes live in `server/shared/constants.js` (`ERROR_CODE`), added together wi
 Between `server/passport/` (Teammate) and `server/pdf/`, `server/chain/` (Giorgi). Objects are `camelCase`.
 
 Hash rules (one for all):
-- `codeHash` and `docHash`: **SHA-256**, 64 lowercase hex characters, **no `0x`** (same as DB `doc_hash`). `chainService` adds `0x` for the contract and removes it again on the way back.
-- `codeHash` = SHA-256 of the verification code text (UTF-8, e.g. `BTU-V-7F3K-92QX`). `docHash` = SHA-256 of the final PDF bytes.
-- `txHash`: `0x` + 64 hex (same as DB `tx_hash`).
-- The browser uses the same rules (`crypto.subtle`), so it finds the same record the server wrote.
+- `codeHash`, `docHash` and `passportRef` are 64 lowercase hex characters with **no `0x`** (same as DB `doc_hash`). `chainService` adds `0x` for the contract and removes it again on the way back. `txHash` is `0x` + 64 hex (same as DB `tx_hash`).
+- `codeHash` = SHA-256 of the verification code text (UTF-8, e.g. `BTU-V-7F3K-92QX`). `docHash` = SHA-256 of the final PDF bytes. The browser computes both with `crypto.subtle`, so it finds the same record the server wrote.
+- `passportRef` = keccak256 of `passportId + PASSPORT_REF_SALT` (text, UTF-8), computed by the server, e.g. `ethers.id(passportId + salt)` without the `0x`. The chain stores only this hash, never the Passport ID. The salt is a secret from `server/.env`: it never leaves the server and must never change, otherwise old records can no longer be matched to their passport. The browser does not compute `passportRef`, it only reads it from the contract.
+- `PASSPORT_REF_SALT` is a new `.env` variable. Giorgi adds it to `server/.env.example`, `server/config.js` and CLAUDE.md.
 
 ## renderPassportPdf(student, awards, verificationCode) → Promise<Uint8Array>
-`server/pdf/` (Giorgi). Called by `server/passport/` (Luka). Async because `pdf-lib` is async.
+`server/pdf/` (Giorgi). Called by `server/passport/` (Teammate). Async because `pdf-lib` is async.
 
-Field names are the ones `server/sheets/reader.js` produces. The renderer already reads them, so it works with a Sheet row or with a DB row converted to the same names.
+Field names are the ones `server/sheets/reader.js` produces (`server/scripts/render-test.js` passes Sheet rows). DB rows from `server/db/queries.js` have the same names.
 ```js
-student = { passportId: 'BTU-AI-000125', firstName: 'Giorgi', lastName: 'Kapanadze', firstIssued: '2026-10-01' }
+student = { studentId: 'BTU-T-0007', firstName: 'Giorgi', lastName: 'Kapanadze', passportId: 'BTU-AI-000125', firstIssued: '2026-10-01' }
 
 // every award of this student up to and including this version (the renderer sorts: dateEarned, then recordId)
 awards = [
-  { recordId: 'REC-0001', skillName: 'Prompt Engineering', skillCategory: 'AI Skill', skillDescription: '…', dateEarned: '2026-09-12' }
+  { recordId: 'REC-0001', studentId: 'BTU-T-0007', skillId: 'SKL-001', skillName: 'Prompt Engineering', skillCategory: 'AI Skill', skillDescription: '…', dateEarned: '2026-09-12' }
 ]
 
 verificationCode = 'BTU-V-7F3K-92QX'
 ```
 - Returns the final PDF bytes. They are hashed and stored as they are; an issued PDF is never rendered again (hash would change).
 - The stamp comes from `skillCategory` via `STAMP_CODE_BY_CATEGORY` (Decision 12).
-- `verificationCode` is the new third argument: it is added in the QR step (today the renderer takes only `student, awards`).
-- The QR encodes `${VERIFY_BASE_URL}/verify/${verificationCode}`. `VERIFY_BASE_URL` is a new line in `server/.env.example` and `server/config.js`.
+- The QR encodes `${config.publicBaseUrl}/verify/${verificationCode}` (`PUBLIC_BASE_URL` in `server/.env`, default `http://localhost:4200`).
 
-## chainService.issue(codeHash, docHash, version) → Promise<{ txHash }>
-`server/chain/` (Giorgi). Called by `server/passport/` (Luka), step 4 of the issuance pipeline.
+## chainService.issue(codeHash, docHash, passportRef, version) → Promise<{ txHash }>
+`server/chain/` (Giorgi). Called by `server/passport/` (Teammate), step 4 of the issuance pipeline.
+- `passportRef` ties the record to its passport without putting the Passport ID on chain (see hash rules).
 - `version`: integer, 1 or more.
 - Resolves **only after the transaction is confirmed**. Throws if it reverts, times out or the RPC fails; the caller then keeps the previous `latest` (pipeline step 5).
 - Called one student at a time, so nonces do not collide.
 
-## chainService.getRecord(codeHash) → Promise<{ docHash, version, issuer, timestamp } | null>
+## chainService.getRecord(codeHash) → Promise<{ docHash, passportRef, version, timestamp, exists } | null>
 `server/chain/` (Giorgi). Read-only.
-- `docHash`: 64 hex, no `0x`. `version`: number. `issuer`: wallet address (`0x…`) that wrote the record. `timestamp`: Unix seconds (block time).
+- `docHash`, `passportRef`: 64 hex, no `0x`. `version`: number. `timestamp`: Unix seconds (block time). `exists`: `true` for a found record.
 - `null` when this `codeHash` was never issued.
-- The contract exposes the same four values; the browser reads them directly through the public RPC.
+- The issuer address is not part of the record. The verify page reads the contract's issuer (set in the constructor, Decision 17) and compares it with `client/public/.well-known/btu-issuer.json`.
+- The browser reads the same values directly from the contract through the public RPC.
+
+## chainService.latestVersion(passportRef) → Promise<number>
+`server/chain/` (Giorgi). Read-only. The highest version issued on chain for this passport, `0` if there is none.
+Together with `getRecord` it answers "is this the latest version?" straight from the chain, without trusting the database.

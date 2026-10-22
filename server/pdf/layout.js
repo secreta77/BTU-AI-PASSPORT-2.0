@@ -20,6 +20,10 @@ export const PAGE_1 = {
   name: { x: toX(300), y: toY(418), size: 22 },
   surname: { x: toX(372), y: toY(478), size: 22 },
   date: { x: toX(995), y: toY(408), size: 18 },
+  // Verification block in the empty space under SURNAME (bottom-left corner of the QR square)
+  qr: { x: toX(165), y: toY(640), size: toSize(130) },
+  verificationLabel: { x: toX(315), y: toY(560), size: 9 },
+  verificationCode: { x: toX(315), y: toY(582), size: 14 },
 };
 
 // "PASSPORT ID:" footer, index 0..3 = pages 1..4.
@@ -68,6 +72,11 @@ export const PAGE_4 = {
     toY(TABLE_FIRST_ROW_TOP_PX + TABLE_ROW_HEIGHT_PX * index + TABLE_ROW_HEIGHT_PX / 2),
   ),
   stamp: { centerX: toX(218), width: toSize(120) },
+  // Hides the template's decorative circle under the stamp in a filled row
+  backdrop: { width: toSize(60), height: toSize(60) },
+  // Text must stay inside the row: row height minus a small margin top and bottom
+  cellMaxHeight: toSize(TABLE_ROW_HEIGHT_PX - 14),
+  minFontSize: 7,
   skill: { centerX: toX(386), maxWidth: toSize(124), size: 11, lineHeight: 13 },
   description: { centerX: toX(571), maxWidth: toSize(190), size: 8, lineHeight: 10 },
   earnedThrough: { centerX: toX(815), maxWidth: toSize(200), size: 7, lineHeight: 9 },

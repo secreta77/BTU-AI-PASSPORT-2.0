@@ -1,6 +1,11 @@
 // Creates one pg Pool from DATABASE_URL and exports it.
 import pg from 'pg';
-import config from '../config.js';
+import { config } from '../config.js';
+
+// config.js does not fail on empty values, so this module checks the one it needs
+if (!config.databaseUrl) {
+  throw new Error('DATABASE_URL is empty. Fill it in server/.env (see server/.env.example).');
+}
 
 // A SQL date would become a JS Date object, and the timezone can shift the day (2026-09-12 -> 09-11).
 // We keep dates as plain "YYYY-MM-DD" text, like the Sheet reader and the PDF renderer expect.
