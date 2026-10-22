@@ -1,11 +1,12 @@
 // Dev helper: checks the Supabase Storage bucket with a small fake PDF. Run: npm run storage-check
 // Uses a test path that real passports never use, and removes the test file at the end.
 import { config } from '../config.js';
-import { downloadPdf, getStorageBucket, uploadPdf } from '../storage/storageService.js';
+import { buildPdfPath, downloadPdf, findStoredPdf, getStorageBucket, uploadPdf } from '../storage/storageService.js';
 
 const TEST_PASSPORT_ID = 'BTU-AI-000000'; // not a real passport
+const TEST_VERSION = 1;
 const TEST_VERIFICATION_CODE = 'BTU-V-TEST-0001';
-const TEST_PATH = `${TEST_PASSPORT_ID}/${TEST_VERIFICATION_CODE}.pdf`;
+const TEST_PATH = buildPdfPath(TEST_PASSPORT_ID, TEST_VERSION, TEST_VERIFICATION_CODE);
 const PDF_A = Buffer.from('%PDF-1.4\n% storage-check test file A\n');
 const PDF_B = Buffer.from('%PDF-1.4\n% storage-check test file B\n');
 
@@ -22,7 +23,7 @@ try {
 
   await bucket.remove([TEST_PATH]); // leftover from an earlier failed run, if any; errors are shown by the upload below
 
-  const path = await uploadPdf(TEST_PASSPORT_ID, TEST_VERIFICATION_CODE, PDF_A);
+  const path = await uploadPdf(TEST_PASSPORT_ID, TEST_VERSION, TEST_VERIFICATION_CODE, PDF_A);
   if (path !== TEST_PATH) {
     throw new Error(`uploadPdf returned "${path}", expected "${TEST_PATH}"`);
   }
@@ -34,12 +35,12 @@ try {
   }
   ok('download returns exactly the same bytes');
 
-  await uploadPdf(TEST_PASSPORT_ID, TEST_VERIFICATION_CODE, PDF_A);
+  await uploadPdf(TEST_PASSPORT_ID, TEST_VERSION, TEST_VERIFICATION_CODE, PDF_A);
   ok('uploading the same file again is a success (retry safe)');
 
   let overwritten = true;
   try {
-    await uploadPdf(TEST_PASSPORT_ID, TEST_VERIFICATION_CODE, PDF_B);
+    await uploadPdf(TEST_PASSPORT_ID, TEST_VERSION, TEST_VERIFICATION_CODE, PDF_B);
   } catch {
     overwritten = false;
   }
@@ -50,6 +51,18 @@ try {
     throw new Error('The stored PDF was changed by the rejected upload');
   }
   ok('a different file at the same path is refused, the original stays');
+
+  const stored = await findStoredPdf(TEST_PASSPORT_ID, TEST_VERSION);
+  const createdAtIsValid = stored !== null && !Number.isNaN(stored.createdAt.getTime());
+  if (!stored || stored.verificationCode !== TEST_VERIFICATION_CODE || stored.pdfPath !== TEST_PATH || !createdAtIsValid) {
+    throw new Error(`findStoredPdf returned ${JSON.stringify(stored)}`);
+  }
+  ok(`findStoredPdf finds the file and its code (${stored.verificationCode}), created ${stored.createdAt.toISOString()}`);
+
+  if ((await findStoredPdf(TEST_PASSPORT_ID, TEST_VERSION + 1)) !== null) {
+    throw new Error('findStoredPdf found a file for a version that was never uploaded');
+  }
+  ok('findStoredPdf returns null for a version without a file');
 
   // A private bucket does not serve files from the public URL
   const { data } = bucket.getPublicUrl(path);

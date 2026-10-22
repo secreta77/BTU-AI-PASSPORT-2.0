@@ -13,6 +13,7 @@
     "db-check": "node scripts/db-check.js",
     "db-test": "node scripts/db-test.js",
     "storage-check": "node scripts/storage-check.js",
+    "issue-test": "node scripts/issue-test.js",
     "chain-check": "node scripts/chain-check.js"
   },
   "dependencies": {

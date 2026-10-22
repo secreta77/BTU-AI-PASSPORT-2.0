@@ -88,10 +88,12 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 1. Generate Verification Code (e.g. `BTU-V-7F3K-92QX`), different from Passport ID.
 2. Render PDF with the code + QR.
 3. SHA-256 of the final PDF bytes.
-4. `issue(codeHash, docHash, passportRef, version)` on the contract from the BTU issuer wallet.
-5. Only after tx confirmation: new version = `latest`, previous = `superseded`. On failure the previous latest stays.
-6. Store PDF in Storage; never regenerate an issued PDF (hash would change).
+4. Upload the PDF to Storage (before the chain) as `{passportId}/v{version}-{code}.pdf`, never overwriting (`upsert: false`).
+5. `issue(codeHash, docHash, passportRef, version)` on the contract from the BTU issuer wallet.
+6. Only after tx confirmation, in one DB transaction: new version = `latest` (with `pdf_path` and `tx_hash`), previous = `superseded`. On failure the previous latest stays.
 7. Write Q–T in the Sheet: SYNCED / version / time / error.
+
+Retry safety: if the chain step fails, the uploaded PDF stays in Storage (never deleted). On retry the same code and the same PDF are reused, never rendered again (the hash would change), and `getRecord(codeHash)` is checked before `issue()` is sent again (Decision 25).
 
 ## Critical rules
 - Idempotency: `record_id` UNIQUE; a record is never processed twice.
@@ -175,3 +177,4 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 26. `chainService` accepts codeHash, docHash and passportRef with or without 0x and normalizes them in one helper (normalizeBytes32). passportRef = ethers.id(passportId + config.passportRefSalt).
 27. Browser gets publicRpcUrls and contractAddress from the verify API response (docs/api.md), not from environment.ts.
 28. UI text only via `core/i18n` (ka default, en). PDF passport stays English. Components never contain literal text: use `{{ 'key' | t }}`. Add a key to `ka.ts` first; `en.ts` is type-checked against it. Georgian style: natural, simple Georgian (not word-for-word translation), short sentences, formal "თქვენ" address. Glossary (use the same term everywhere): Verify → გადამოწმება | Verification code → ვერიფიკაციის კოდი | Passport → პასპორტი | Skill → უნარი | Stamp → შტამპი | Issued → გაცემულია | Latest version → უახლესი ვერსია | Outdated → მოძველებული | Log in → შესვლა | Admin → ადმინისტრირება | Coming soon → მალე დაემატება | Sync → სინქრონიზაცია | Log → ჟურნალი. Browser `<title>` stays "BTU AI Passport".
+29. Pipeline order (Storage before chain): the PDF is uploaded after the hash and before `issue()`, so a confirmed chain record never lacks its PDF. Path: `{passportId}/v{version}-{code}.pdf` in the private bucket, uploaded with `upsert: false` (same bytes again = success, different bytes = error). A failed chain call leaves the file in Storage; the next attempt for the same version finds it (`findStoredPdf`) and reuses its code and bytes. Exception: if an award arrived after that file was created, the file does not contain it, so a new code and PDF are made for all pending awards (the old file stays unused). If the old code is already on chain but not in the DB, the pipeline stops with a clear error instead of guessing.

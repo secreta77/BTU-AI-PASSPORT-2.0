@@ -208,11 +208,12 @@ export async function findPendingStudentIds(db = pool) {
 // ALL awards of one student with their skill data: the ones already issued (versionId is set) and the new ones
 // (versionId is null). The PDF of the new version needs all of them: earlier skills are never removed.
 // Field names are the ones renderPassportPdf reads (docs/api.md). awardId goes to saveIssuedVersion.
+// createdAt tells the pipeline if a PDF left by a failed attempt already contains an award (issuePipeline.js).
 export async function findAwardsByStudent(studentId, db = pool) {
   const { rows } = await db.query(
     `SELECT a.id AS award_id, a.record_id, a.student_id, a.skill_id,
             k.name AS skill_name, k.category AS skill_category, k.description AS skill_description,
-            a.earned_through, a.date_earned, a.version_id
+            a.earned_through, a.date_earned, a.version_id, a.created_at
      FROM skill_awards a
      JOIN skills k ON k.skill_id = a.skill_id
      WHERE a.student_id = $1
