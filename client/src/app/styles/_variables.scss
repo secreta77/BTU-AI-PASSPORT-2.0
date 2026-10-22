@@ -1,0 +1,39 @@
+// Single source of truth for colors, spacing and font sizes.
+// Breakpoints live in _mixins.scss.
+
+// BTU palette
+$color-primary: #ff6b00;
+$color-dark: #2b2b2b;
+$color-white: #ffffff;
+$color-card: #f3f3f3;
+$color-border: #dddddd;
+$color-text-muted: #6b6b6b;
+
+// Stamp colors (see the passport design)
+$color-stamp-red: #d32f2f;
+$color-stamp-purple: #7b3fa0;
+$color-stamp-navy: #1f2a5c;
+$color-stamp-green: #2e7d32;
+$color-stamp-pink: #e91e8c;
+
+// Spacing scale: never above 4rem
+$space-xxs: 0.25rem;
+$space-xs: 0.5rem;
+$space-sm: 0.75rem;
+$space-md: 1rem;
+$space-lg: 1.5rem;
+$space-xl: 2rem;
+$space-xxl: 3rem;
+$space-xxxl: 4rem;
+
+// Fonts: system stack until BTU gives us the real font
+$font-family-base: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+$font-family-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+$font-size-small: 0.875rem;
+$font-size-body: 1rem;
+$font-size-large: 1.125rem;
+$font-size-h1: clamp(1.5rem, 4vw, 2.5rem);
+$font-size-h2: clamp(1.25rem, 3vw, 1.75rem);
+
+$radius-md: 0.5rem;
+$content-max-width: 64rem;

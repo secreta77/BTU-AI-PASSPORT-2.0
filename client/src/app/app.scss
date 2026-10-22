@@ -1,0 +1,23 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+// Page shell: header on top, footer at the bottom even when the page is short
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: $content-max-width;
+  margin-inline: auto;
+  padding: $space-lg $space-md;
+}
+
+@include up(md) {
+  .content {
+    padding: $space-xl $space-lg;
+  }
+}

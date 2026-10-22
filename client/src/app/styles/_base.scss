@@ -1,0 +1,50 @@
+// Global reset and base element styles. Component styles stay in the components.
+@use 'variables' as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: $font-family-base;
+  font-size: $font-size-body;
+  line-height: 1.5;
+  color: $color-dark;
+  background: $color-white;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 $space-md;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: $font-size-h1;
+}
+
+h2 {
+  font-size: $font-size-h2;
+}
+
+p {
+  margin: 0 0 $space-md;
+}
+
+a {
+  color: $color-primary;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid $color-primary;
+  outline-offset: 2px;
+}

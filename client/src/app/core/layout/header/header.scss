@@ -1,0 +1,31 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.header {
+  background: $color-dark;
+  border-bottom: 4px solid $color-primary;
+}
+
+.header__inner {
+  width: 100%;
+  max-width: $content-max-width;
+  margin-inline: auto;
+  padding: $space-md;
+}
+
+.header__title {
+  color: $color-white;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+}
+
+@include up(md) {
+  .header__inner {
+    padding-inline: $space-lg;
+  }
+
+  .header__title {
+    font-size: $font-size-large;
+  }
+}

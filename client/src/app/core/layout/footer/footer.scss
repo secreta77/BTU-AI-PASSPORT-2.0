@@ -1,0 +1,26 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.footer {
+  background: $color-card;
+  border-top: 1px solid $color-border;
+}
+
+.footer__inner {
+  width: 100%;
+  max-width: $content-max-width;
+  margin-inline: auto;
+  padding: $space-md;
+}
+
+.footer__text {
+  margin: 0;
+  font-size: $font-size-small;
+  color: $color-text-muted;
+}
+
+@include up(md) {
+  .footer__inner {
+    padding-inline: $space-lg;
+  }
+}

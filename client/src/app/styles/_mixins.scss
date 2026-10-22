@@ -1,0 +1,20 @@
+// Mobile-first: write the small-screen style first, then widen with up().
+@use 'sass:map';
+
+// The only place with breakpoints
+$breakpoints: (
+  sm: 480px,
+  md: 768px,
+  lg: 1024px,
+  xl: 1280px,
+);
+
+@mixin up($name) {
+  $width: map.get($breakpoints, $name);
+  @if not $width {
+    @error 'Unknown breakpoint: #{$name}';
+  }
+  @media (min-width: $width) {
+    @content;
+  }
+}
