@@ -10,10 +10,15 @@ import {
   findIssuedSkillsByStudent,
   findStudentByEmail,
   findStudentPassport,
+  findSyncLog,
   findVersionByCode,
+  findVersionPdfPath,
+  findVersionsByPassport,
   insertNewSkills,
   insertSkillAwards,
   insertStudent,
+  insertSyncLog,
+  listPassports,
   saveIssuedVersion,
 } from '../db/queries.js';
 
@@ -45,6 +50,7 @@ async function removeFakeData() {
   await pool.query('DELETE FROM passports WHERE student_id = ANY($1)', [STUDENT_IDS]);
   await pool.query('DELETE FROM students WHERE student_id = ANY($1)', [STUDENT_IDS]);
   await pool.query('DELETE FROM skills WHERE skill_id = ANY($1)', [SKILL_IDS]);
+  await pool.query("DELETE FROM sync_log WHERE student_id = ANY($1) OR record_id LIKE 'TEST-%'", [STUDENT_IDS]);
 }
 
 // Two students (only the first one has a passport), two skills and two new awards for the first student.
@@ -65,6 +71,12 @@ async function createFakeData() {
   await insertSkillAwards([
     { recordId: 'TEST-REC-1', studentId: STUDENT_IDS[0], skillId: SKILL_IDS[0], dateEarned: '2026-09-12' },
     { recordId: 'TEST-REC-2', studentId: STUDENT_IDS[0], skillId: SKILL_IDS[1], dateEarned: '2026-09-01' },
+  ]);
+  // Three log entries, inserted in this order: the newest (info) must come first when we read them back
+  await insertSyncLog([
+    { sheetRow: 14, recordId: 'TEST-REC-9', studentId: STUDENT_IDS[0], level: 'error', message: 'Row 14: test error' },
+    { sheetRow: 15, recordId: 'TEST-REC-8', studentId: STUDENT_IDS[0], level: 'duplicate', message: 'Row 15: test duplicate' },
+    { sheetRow: null, recordId: null, studentId: STUDENT_IDS[0], level: 'info', message: 'Row 0: test info' },
   ]);
 }
 
@@ -101,6 +113,13 @@ try {
   });
   await check('findIssuedSkillsByStudent: nothing issued yet -> []', async () => {
     assert.deepEqual(await findIssuedSkillsByStudent(STUDENT_IDS[0]), []);
+  });
+  await check('listPassports: no version yet -> latestVersion null, skillCount 0', async () => {
+    const items = await listPassports();
+    const item = items.find((entry) => entry.passportId === PASSPORT_ID);
+    assert.equal(item.latestVersion, null);
+    assert.equal(item.lastIssuedAt, null);
+    assert.equal(item.skillCount, 0);
   });
 
   await issueVersion(1, CODE_V1, 'TEST-REC-1');
@@ -153,6 +172,56 @@ try {
   await check('findIssuedSkillsByStudent: both skills, oldest date first', async () => {
     const skills = await findIssuedSkillsByStudent(STUDENT_IDS[0]);
     assert.deepEqual(skills.map((skill) => skill.skillId), [SKILL_IDS[1], SKILL_IDS[0]]);
+  });
+
+  console.log('Admin');
+  await check('listPassports: owner, latest version and skill count', async () => {
+    const items = await listPassports();
+    const item = items.find((entry) => entry.passportId === PASSPORT_ID);
+    assert.equal(item.studentId, STUDENT_IDS[0]);
+    assert.equal(item.firstName, 'Test');
+    assert.equal(item.email, 'one@test.invalid');
+    assert.equal(item.latestVersion, 2);
+    assert.equal(item.skillCount, 2);
+    assert.equal(item.firstIssued, '2026-10-01');
+    assert.ok(item.lastIssuedAt instanceof Date);
+    assert.equal(items.some((entry) => entry.studentId === STUDENT_IDS[1]), false); // no passport -> not listed
+  });
+  await check('findVersionsByPassport: newest first with all fields', async () => {
+    const versions = await findVersionsByPassport(PASSPORT_ID);
+    assert.deepEqual(versions.map((item) => item.version), [2, 1]);
+    assert.deepEqual(versions.map((item) => item.status), ['latest', 'superseded']);
+    assert.equal(versions[0].verificationCode, CODE_V2);
+    assert.equal(versions[0].txHash, TX_HASH);
+    assert.equal(versions[0].docHash, DOC_HASH);
+    assert.ok(versions[0].issuedAt instanceof Date);
+  });
+  await check('findVersionsByPassport: unknown passport -> []', async () => {
+    assert.deepEqual(await findVersionsByPassport('BTU-AI-999999'), []);
+  });
+  await check('findVersionPdfPath: old and new version, unknown version -> null', async () => {
+    assert.equal(await findVersionPdfPath(PASSPORT_ID, 1), 'test/v1.pdf');
+    assert.equal(await findVersionPdfPath(PASSPORT_ID, 2), 'test/v2.pdf');
+    assert.equal(await findVersionPdfPath(PASSPORT_ID, 3), null);
+  });
+  await check('findSyncLog: newest first, id is a number', async () => {
+    const entries = (await findSyncLog({ limit: 500 })).filter((entry) => entry.studentId === STUDENT_IDS[0]);
+    assert.deepEqual(entries.map((entry) => entry.level), ['info', 'duplicate', 'error']);
+    assert.equal(typeof entries[0].id, 'number');
+    assert.equal(entries[2].sheetRow, 14);
+    assert.equal(entries[2].recordId, 'TEST-REC-9');
+    assert.equal(entries[2].message, 'Row 14: test error');
+    assert.equal(entries[0].sheetRow, null);
+    assert.ok(entries[0].createdAt instanceof Date);
+  });
+  await check('findSyncLog: level filter', async () => {
+    const entries = await findSyncLog({ level: 'duplicate', limit: 500 });
+    assert.ok(entries.length >= 1);
+    assert.ok(entries.every((entry) => entry.level === 'duplicate'));
+    assert.ok(entries.some((entry) => entry.message === 'Row 15: test duplicate'));
+  });
+  await check('findSyncLog: limit', async () => {
+    assert.equal((await findSyncLog({ limit: 1 })).length, 1);
   });
 
   console.log('Student by email');

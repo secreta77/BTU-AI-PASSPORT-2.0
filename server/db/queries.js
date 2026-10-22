@@ -358,3 +358,62 @@ export async function findIssuedSkillsByStudent(studentId, db = pool) {
   );
   return rows.map(toCamelCase);
 }
+
+// ---------- API reads: admin ----------
+
+// All passports with the owner and the newest version, sorted by Passport ID. No paging (about 18 students).
+// latestVersion and lastIssuedAt are null until the first version is issued.
+// skillCount = skills that are already in an issued passport (the same skills the student sees).
+export async function listPassports(db = pool) {
+  const { rows } = await db.query(
+    `SELECT p.passport_id, s.student_id, s.first_name, s.last_name, s.email,
+            v.version AS latest_version, v.issued_at AS last_issued_at,
+            p.first_issued_at AS first_issued,
+            (SELECT COUNT(*)::int FROM skill_awards a
+              WHERE a.student_id = s.student_id AND a.version_id IS NOT NULL) AS skill_count
+     FROM passports p
+     JOIN students s ON s.student_id = p.student_id
+     LEFT JOIN passport_versions v ON v.passport_id = p.passport_id AND v.status = $1
+     ORDER BY p.passport_id`,
+    [VERSION_STATUS.LATEST],
+  );
+  return rows.map(toCamelCase);
+}
+
+// All versions of one passport, newest first. An empty list means "no versions yet" OR "no such passport":
+// the route tells them apart with findPassportsByIds (404 PASSPORT_NOT_FOUND).
+export async function findVersionsByPassport(passportId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT version, verification_code, status, issued_at, tx_hash, doc_hash
+     FROM passport_versions
+     WHERE passport_id = $1
+     ORDER BY version DESC`,
+    [passportId],
+  );
+  return rows.map(toCamelCase);
+}
+
+// Where the PDF of one version is stored (Supabase Storage path), or null if there is no such version
+// (404 VERSION_NOT_FOUND). Works for any version, also old ones (demo scenario 12).
+export async function findVersionPdfPath(passportId, version, db = pool) {
+  const { rows } = await db.query(
+    'SELECT pdf_path FROM passport_versions WHERE passport_id = $1 AND version = $2',
+    [passportId, version],
+  );
+  return rows.length === 0 ? null : rows[0].pdf_path;
+}
+
+// Sync log, newest first. level: 'info' | 'error' | 'duplicate', or null for all levels.
+// The route checks level and limit (max 500) before calling this.
+// id is cast to a normal number: PostgreSQL returns bigserial as text by default.
+export async function findSyncLog({ level = null, limit = 100 } = {}, db = pool) {
+  const { rows } = await db.query(
+    `SELECT id::int AS id, sheet_row, record_id, student_id, level, message, created_at
+     FROM sync_log
+     WHERE ($1::text IS NULL OR level = $1)
+     ORDER BY id DESC
+     LIMIT $2`,
+    [level, limit],
+  );
+  return rows.map(toCamelCase);
+}
