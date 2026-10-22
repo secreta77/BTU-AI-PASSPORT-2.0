@@ -42,6 +42,12 @@ export const VERIFY_RESULT = {
   UNKNOWN_CODE: 'UNKNOWN_CODE',
 };
 
+// Email login code (Decision 7). MAX_ATTEMPTS must match the CHECK on otp_codes.attempts in db/schema.sql.
+export const OTP = {
+  VALID_MINUTES: 10,
+  MAX_ATTEMPTS: 5,
+};
+
 export const ID_PATTERN = {
   STUDENT_ID: /^BTU-T-\d{4}$/,
   SKILL_ID: /^SKL-\d{3}$/,

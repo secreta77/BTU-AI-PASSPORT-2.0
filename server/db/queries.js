@@ -4,7 +4,7 @@
 // - `db` is the LAST argument. It is the shared `pool` or the client of a running transaction.
 // - Rows come back as camelCase objects. Names follow sheets/reader.js (`studentStatus`, `firstIssued`, ...),
 //   so one field has one name from the Sheet to the DB to the PDF (see docs/api.md).
-import { VERSION_STATUS } from '../shared/constants.js';
+import { OTP, VERSION_STATUS } from '../shared/constants.js';
 import { pool } from './pool.js';
 
 // "first_name" -> "firstName"
@@ -271,4 +271,204 @@ export async function saveIssuedVersion(issued) {
 
     return { versionId, issuedAt: rows[0].issued_at };
   });
+}
+
+// ---------- API reads: verify page and student ----------
+// These queries only read. They return plain data; the route decides which fields go into the JSON answer.
+
+// Facts about one verification code, or null if the code was never issued (404 CODE_NOT_FOUND).
+// latestVersion = newest version of the SAME passport. The verify page needs it to tell "latest" from "outdated".
+// Timestamps (issuedAt) come back as JS Date objects: JSON turns them into ISO 8601 text.
+export async function findVersionByCode(verificationCode, db = pool) {
+  const { rows } = await db.query(
+    `SELECT v.id AS version_id, v.passport_id, v.version, v.verification_code, v.status,
+            v.doc_hash, v.tx_hash, v.issued_at,
+            (SELECT MAX(other.version) FROM passport_versions other WHERE other.passport_id = v.passport_id) AS latest_version
+     FROM passport_versions v
+     WHERE v.verification_code = $1`,
+    [verificationCode],
+  );
+  return rows.length === 0 ? null : toCamelCase(rows[0]);
+}
+
+// The student who owns this email, or null. Upper and lower case do not matter (same rule as the unique index).
+// Returns { studentId, firstName, lastName, email }.
+export async function findStudentByEmail(email, db = pool) {
+  const { rows } = await db.query(
+    'SELECT student_id, first_name, last_name, email FROM students WHERE lower(email) = lower($1)',
+    [email],
+  );
+  return rows.length === 0 ? null : toCamelCase(rows[0]);
+}
+
+// The passport of one student with the data of the student, or null if the student has no passport.
+// `latest` is null while no version has been issued yet (the passport row exists, the PDF does not).
+// latest = { versionId, version, verificationCode, issuedAt, txHash, pdfPath }
+export async function findStudentPassport(studentId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT p.passport_id, p.first_issued_at AS first_issued,
+            s.student_id, s.first_name, s.last_name, s.program, s.education_level, s.status AS student_status,
+            v.id AS version_id, v.version, v.verification_code, v.issued_at, v.tx_hash, v.pdf_path
+     FROM passports p
+     JOIN students s ON s.student_id = p.student_id
+     LEFT JOIN passport_versions v ON v.passport_id = p.passport_id AND v.status = $2
+     WHERE p.student_id = $1`,
+    [studentId, VERSION_STATUS.LATEST],
+  );
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = toCamelCase(rows[0]);
+  const latest = row.versionId === null
+    ? null
+    : {
+        versionId: row.versionId,
+        version: row.version,
+        verificationCode: row.verificationCode,
+        issuedAt: row.issuedAt,
+        txHash: row.txHash,
+        pdfPath: row.pdfPath,
+      };
+  return {
+    passportId: row.passportId,
+    studentId: row.studentId,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    program: row.program,
+    educationLevel: row.educationLevel,
+    studentStatus: row.studentStatus,
+    firstIssued: row.firstIssued,
+    latest,
+  };
+}
+
+// Skills that are already in an issued passport (version_id is set), oldest dateEarned first.
+// New awards of the next sync are not shown here: the student sees them after the new version is issued.
+// stampCode is not in the database: the route adds it from STAMP_CODE_BY_CATEGORY (Decision 12).
+export async function findIssuedSkillsByStudent(studentId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT a.skill_id, k.name AS skill_name, k.category AS skill_category, k.description AS skill_description,
+            a.earned_through, a.date_earned
+     FROM skill_awards a
+     JOIN skills k ON k.skill_id = a.skill_id
+     WHERE a.student_id = $1 AND a.version_id IS NOT NULL
+     ORDER BY a.date_earned, a.record_id`,
+    [studentId],
+  );
+  return rows.map(toCamelCase);
+}
+
+// ---------- API reads: admin ----------
+
+// All passports with the owner and the newest version, sorted by Passport ID. No paging (about 18 students).
+// latestVersion and lastIssuedAt are null until the first version is issued.
+// skillCount = skills that are already in an issued passport (the same skills the student sees).
+export async function listPassports(db = pool) {
+  const { rows } = await db.query(
+    `SELECT p.passport_id, s.student_id, s.first_name, s.last_name, s.email,
+            v.version AS latest_version, v.issued_at AS last_issued_at,
+            p.first_issued_at AS first_issued,
+            (SELECT COUNT(*)::int FROM skill_awards a
+              WHERE a.student_id = s.student_id AND a.version_id IS NOT NULL) AS skill_count
+     FROM passports p
+     JOIN students s ON s.student_id = p.student_id
+     LEFT JOIN passport_versions v ON v.passport_id = p.passport_id AND v.status = $1
+     ORDER BY p.passport_id`,
+    [VERSION_STATUS.LATEST],
+  );
+  return rows.map(toCamelCase);
+}
+
+// All versions of one passport, newest first. An empty list means "no versions yet" OR "no such passport":
+// the route tells them apart with findPassportsByIds (404 PASSPORT_NOT_FOUND).
+export async function findVersionsByPassport(passportId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT version, verification_code, status, issued_at, tx_hash, doc_hash
+     FROM passport_versions
+     WHERE passport_id = $1
+     ORDER BY version DESC`,
+    [passportId],
+  );
+  return rows.map(toCamelCase);
+}
+
+// Where the PDF of one version is stored (Supabase Storage path), or null if there is no such version
+// (404 VERSION_NOT_FOUND). Works for any version, also old ones (demo scenario 12).
+export async function findVersionPdfPath(passportId, version, db = pool) {
+  const { rows } = await db.query(
+    'SELECT pdf_path FROM passport_versions WHERE passport_id = $1 AND version = $2',
+    [passportId, version],
+  );
+  return rows.length === 0 ? null : rows[0].pdf_path;
+}
+
+// Sync log, newest first. level: 'info' | 'error' | 'duplicate', or null for all levels.
+// The route checks level and limit (max 500) before calling this.
+// id is cast to a normal number: PostgreSQL returns bigserial as text by default.
+export async function findSyncLog({ level = null, limit = 100 } = {}, db = pool) {
+  const { rows } = await db.query(
+    `SELECT id::int AS id, sheet_row, record_id, student_id, level, message, created_at
+     FROM sync_log
+     WHERE ($1::text IS NULL OR level = $1)
+     ORDER BY id DESC
+     LIMIT $2`,
+    [level, limit],
+  );
+  return rows.map(toCamelCase);
+}
+
+// ---------- Email login code (OTP) ----------
+// The code itself is never stored, only its hash. The auth service creates the code, hashes it and decides
+// what "expired" and "locked" mean; these queries only store, read and count.
+
+// Stores a new code. Earlier unused codes of the same email stop working at the same moment:
+// one statement, so there is never a time when two codes are valid. Returns the id of the new code.
+export async function createOtp({ email, codeHash, expiresAt }, db = pool) {
+  const { rows } = await db.query(
+    `WITH retired AS (
+       UPDATE otp_codes SET used_at = now()
+       WHERE lower(email) = lower($1) AND used_at IS NULL
+     )
+     INSERT INTO otp_codes (email, code_hash, expires_at)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    [email, codeHash, expiresAt],
+  );
+  return rows[0].id;
+}
+
+// The newest code of this email that is not used yet, or null (no code requested, or already used).
+// It is returned even when it has expired: the auth service compares expiresAt and answers OTP_EXPIRED
+// instead of INVALID_OTP. Returns { id, codeHash, attempts, expiresAt }.
+export async function findActiveOtp(email, db = pool) {
+  const { rows } = await db.query(
+    `SELECT id, code_hash, attempts, expires_at
+     FROM otp_codes
+     WHERE lower(email) = lower($1) AND used_at IS NULL
+     ORDER BY id DESC
+     LIMIT 1`,
+    [email],
+  );
+  return rows.length === 0 ? null : toCamelCase(rows[0]);
+}
+
+// Counts one wrong attempt and returns the new number. Returns null when the limit is already reached
+// (the number never goes above OTP.MAX_ATTEMPTS, the database would reject it).
+export async function increaseOtpAttempts(id, db = pool) {
+  const { rows } = await db.query(
+    'UPDATE otp_codes SET attempts = attempts + 1 WHERE id = $1 AND attempts < $2 RETURNING attempts',
+    [id, OTP.MAX_ATTEMPTS],
+  );
+  return rows.length === 0 ? null : rows[0].attempts;
+}
+
+// A correct code works once. Returns true if this call used it, false if it was already used.
+// Two requests with the same code at the same moment: only one of them gets true.
+export async function markOtpUsed(id, db = pool) {
+  const { rowCount } = await db.query(
+    'UPDATE otp_codes SET used_at = now() WHERE id = $1 AND used_at IS NULL',
+    [id],
+  );
+  return rowCount > 0;
 }

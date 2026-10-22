@@ -10,6 +10,7 @@
     "check-sheet": "node scripts/check-sheet.js",
     "render-test": "node scripts/render-test.js",
     "db-check": "node scripts/db-check.js",
+    "db-test": "node scripts/db-test.js",
     "chain-check": "node scripts/chain-check.js"
   },
   "dependencies": {
