@@ -17,3 +17,11 @@ export const SYNC_LOG_LEVEL = {
   ERROR: 'error',
   DUPLICATE: 'duplicate',
 } as const;
+
+export const LANGUAGE = {
+  KA: 'ka',
+  EN: 'en',
+} as const;
+
+export const DEFAULT_LANGUAGE = LANGUAGE.KA;
+export const LANGUAGE_STORAGE_KEY = 'btu-lang';

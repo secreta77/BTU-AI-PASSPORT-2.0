@@ -1,5 +1,19 @@
 <header class="header">
   <div class="header__inner">
-    <a class="header__title" routerLink="/verify">AI SKILLS DIGITAL PASSPORT</a>
+    <a class="header__title" routerLink="/verify">{{ 'header.title' | t }}</a>
+
+    <div class="header__lang" role="group" [attr.aria-label]="'lang.label' | t">
+      @for (lang of languages; track lang.code) {
+        <button
+          type="button"
+          class="header__lang-button"
+          [class.header__lang-button--active]="languageService.language() === lang.code"
+          [attr.aria-pressed]="languageService.language() === lang.code"
+          (click)="languageService.setLanguage(lang.code)"
+        >
+          {{ lang.labelKey | t }}
+        </button>
+      }
+    </div>
   </div>
 </header>
