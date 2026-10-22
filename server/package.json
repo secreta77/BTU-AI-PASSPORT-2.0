@@ -7,6 +7,7 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "sync": "node sync/syncService.js",
+    "bootstrap": "node sync/bootstrap.js",
     "check-sheet": "node scripts/check-sheet.js",
     "write-check": "node scripts/write-check.js",
     "render-test": "node scripts/render-test.js",
@@ -15,6 +16,7 @@
     "storage-check": "node scripts/storage-check.js",
     "issue-test": "node scripts/issue-test.js",
     "sync-test": "node scripts/sync-test.js",
+    "sync-run-test": "node scripts/sync-run-test.js",
     "chain-check": "node scripts/chain-check.js"
   },
   "dependencies": {
