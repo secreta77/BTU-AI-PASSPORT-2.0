@@ -88,7 +88,7 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 1. Generate Verification Code (e.g. `BTU-V-7F3K-92QX`), different from Passport ID.
 2. Render PDF with the code + QR.
 3. SHA-256 of the final PDF bytes.
-4. `issue(codeHash, docHash, version)` on the contract from the BTU issuer wallet.
+4. `issue(codeHash, docHash, passportRef, version)` on the contract from the BTU issuer wallet.
 5. Only after tx confirmation: new version = `latest`, previous = `superseded`. On failure the previous latest stays.
 6. Store PDF in Storage; never regenerate an issued PDF (hash would change).
 7. Write Q–T in the Sheet: SYNCED / version / time / error.
@@ -142,7 +142,7 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 ## Roles
 - Giorgi: `server/pdf/`, `contracts/`, `server/chain/`, `client/` (Angular), `server/scripts/tamper-pdf.js`
 - Teammate: `server/db/`, `server/sheets/`, `server/sync/`, `server/passport/`, `server/storage/`, `server/auth/`, `server/routes/`, `docs/api.md`
-- Shared interfaces: `renderPassportPdf(student, awards, verificationCode)` → bytes (target contract; `verificationCode` is added in the QR step); `chainService.issue(codeHash, docHash, version)` → txHash; API shapes in `docs/api.md`.
+- Shared interfaces: `renderPassportPdf(student, awards, verificationCode)` → bytes (target contract; `verificationCode` is added in the QR step); `chainService.issue(codeHash, docHash, passportRef, version)` → txHash; API shapes in `docs/api.md`.
 
 ## Decisions
 1. New vs invalid student:
@@ -168,3 +168,9 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 19. DB: needs PostgreSQL 15+ (`NULLS NOT DISTINCT`). `students.student_id` and `passports.passport_id` are text primary keys. Bootstrap must `setval('passport_number_seq')` to the highest imported number. `skill_awards.version_id` NULL = skill not issued in a passport yet.
 20. PDF rendering: dates are `DD.MM.YYYY` (`shared/format.js`); skills sorted oldest first by `dateEarned`, then `recordId`; `layout.js` values are written in design-PNG pixels and converted to points (page 4 was measured on the real `Passport_Blank.pdf`, the PNG differs slightly). Extra pages are added for >10 stamps / >5 table rows. Text shrinks down to 7pt in table cells, then `console.warn`. Helvetica is temporary. Skill objects passed to the renderer must keep `studentId` (used in warnings).
 21. `PUBLIC_BASE_URL` defaults to `http://localhost:4200`; the QR link is `{PUBLIC_BASE_URL}/verify/{code}`.
+22. Contract design: `issue(codeHash, docHash, passportRef, version)`. One `codeHash` can be written only once. `version` must be exactly `latestVersion[passportRef] + 1`, and `latestVersion` is updated on every issue (read it with `latestVersion(passportRef)`; 0 = none). `docHash` and `passportRef` must not be zero. `issuer` is `public immutable`. `passportRef = keccak256(passportId + PASSPORT_REF_SALT)`, computed by the server; no personal data on chain.
+23. RPC config: `RPC_URLS` is for the server (may contain an API key). `PUBLIC_RPC_URLS` is for the browser, public URLs only, never a key.
+24. Hash format: `codeHash` and `docHash` are SHA-256 hex without `0x`. The contract takes `bytes32`, so `chainService` converts (`'0x' + hex`) on the way in and strips it on the way out. `chainService` is the next step.
+25. Retry safety: before re-sending issue(), pipeline calls getRecord(codeHash). If the record exists with the same docHash, treat it as success (tx already landed) and do not resend.
+26. `chainService` accepts codeHash, docHash and passportRef with or without 0x and normalizes them in one helper (normalizeBytes32). passportRef = ethers.id(passportId + config.passportRefSalt).
+27. Browser gets publicRpcUrls and contractAddress from the verify API response (docs/api.md), not from environment.ts.

@@ -46,8 +46,13 @@ export const config = {
     issuerPrivateKey: readText('ISSUER_PRIVATE_KEY'),
     contractAddress: readText('CONTRACT_ADDRESS'),
     chainId: readNumber('CHAIN_ID'),
+    // Server only, may contain an API key
     rpcUrls: readList('RPC_URLS'),
+    // For the browser: public URLs only, never a key
+    publicRpcUrls: readList('PUBLIC_RPC_URLS'),
   },
+  // Secret salt for passportRef; must never change after the first issue
+  passportRefSalt: readText('PASSPORT_REF_SALT'),
   smtp: {
     host: readText('SMTP_HOST'),
     user: readText('SMTP_USER'),
