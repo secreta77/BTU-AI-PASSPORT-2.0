@@ -9,7 +9,8 @@
     "sync": "node sync/syncService.js",
     "check-sheet": "node scripts/check-sheet.js",
     "render-test": "node scripts/render-test.js",
-    "db-check": "node scripts/db-check.js"
+    "db-check": "node scripts/db-check.js",
+    "db-test": "node scripts/db-test.js"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

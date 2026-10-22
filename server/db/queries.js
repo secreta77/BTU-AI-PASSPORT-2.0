@@ -272,3 +272,89 @@ export async function saveIssuedVersion(issued) {
     return { versionId, issuedAt: rows[0].issued_at };
   });
 }
+
+// ---------- API reads: verify page and student ----------
+// These queries only read. They return plain data; the route decides which fields go into the JSON answer.
+
+// Facts about one verification code, or null if the code was never issued (404 CODE_NOT_FOUND).
+// latestVersion = newest version of the SAME passport. The verify page needs it to tell "latest" from "outdated".
+// Timestamps (issuedAt) come back as JS Date objects: JSON turns them into ISO 8601 text.
+export async function findVersionByCode(verificationCode, db = pool) {
+  const { rows } = await db.query(
+    `SELECT v.id AS version_id, v.passport_id, v.version, v.verification_code, v.status,
+            v.doc_hash, v.tx_hash, v.issued_at,
+            (SELECT MAX(other.version) FROM passport_versions other WHERE other.passport_id = v.passport_id) AS latest_version
+     FROM passport_versions v
+     WHERE v.verification_code = $1`,
+    [verificationCode],
+  );
+  return rows.length === 0 ? null : toCamelCase(rows[0]);
+}
+
+// The student who owns this email, or null. Upper and lower case do not matter (same rule as the unique index).
+// Returns { studentId, firstName, lastName, email }.
+export async function findStudentByEmail(email, db = pool) {
+  const { rows } = await db.query(
+    'SELECT student_id, first_name, last_name, email FROM students WHERE lower(email) = lower($1)',
+    [email],
+  );
+  return rows.length === 0 ? null : toCamelCase(rows[0]);
+}
+
+// The passport of one student with the data of the student, or null if the student has no passport.
+// `latest` is null while no version has been issued yet (the passport row exists, the PDF does not).
+// latest = { versionId, version, verificationCode, issuedAt, txHash, pdfPath }
+export async function findStudentPassport(studentId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT p.passport_id, p.first_issued_at AS first_issued,
+            s.student_id, s.first_name, s.last_name, s.program, s.education_level, s.status AS student_status,
+            v.id AS version_id, v.version, v.verification_code, v.issued_at, v.tx_hash, v.pdf_path
+     FROM passports p
+     JOIN students s ON s.student_id = p.student_id
+     LEFT JOIN passport_versions v ON v.passport_id = p.passport_id AND v.status = $2
+     WHERE p.student_id = $1`,
+    [studentId, VERSION_STATUS.LATEST],
+  );
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = toCamelCase(rows[0]);
+  const latest = row.versionId === null
+    ? null
+    : {
+        versionId: row.versionId,
+        version: row.version,
+        verificationCode: row.verificationCode,
+        issuedAt: row.issuedAt,
+        txHash: row.txHash,
+        pdfPath: row.pdfPath,
+      };
+  return {
+    passportId: row.passportId,
+    studentId: row.studentId,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    program: row.program,
+    educationLevel: row.educationLevel,
+    studentStatus: row.studentStatus,
+    firstIssued: row.firstIssued,
+    latest,
+  };
+}
+
+// Skills that are already in an issued passport (version_id is set), oldest dateEarned first.
+// New awards of the next sync are not shown here: the student sees them after the new version is issued.
+// stampCode is not in the database: the route adds it from STAMP_CODE_BY_CATEGORY (Decision 12).
+export async function findIssuedSkillsByStudent(studentId, db = pool) {
+  const { rows } = await db.query(
+    `SELECT a.skill_id, k.name AS skill_name, k.category AS skill_category, k.description AS skill_description,
+            a.earned_through, a.date_earned
+     FROM skill_awards a
+     JOIN skills k ON k.skill_id = a.skill_id
+     WHERE a.student_id = $1 AND a.version_id IS NOT NULL
+     ORDER BY a.date_earned, a.record_id`,
+    [studentId],
+  );
+  return rows.map(toCamelCase);
+}
