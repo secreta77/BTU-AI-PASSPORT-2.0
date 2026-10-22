@@ -19,6 +19,8 @@
     "sync-run-test": "node scripts/sync-run-test.js",
     "auth-test": "node scripts/auth-test.js",
     "api-test": "node scripts/api-test.js",
+    "preflight": "node scripts/preflight.js",
+    "preflight-test": "node scripts/preflight-test.js",
     "chain-check": "node scripts/chain-check.js"
   },
   "dependencies": {
