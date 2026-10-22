@@ -6,7 +6,13 @@
   border-bottom: 4px solid $color-primary;
 }
 
+// wrap lets the language switch go under the title on very narrow screens (320px)
 .header__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-xs $space-md;
   width: 100%;
   max-width: $content-max-width;
   margin-inline: auto;
@@ -14,10 +20,39 @@
 }
 
 .header__title {
+  min-width: 0;
   color: $color-white;
   font-weight: 700;
-  letter-spacing: 0.05em;
   text-decoration: none;
+}
+
+// Uppercase only for English: text-transform would turn Georgian into capitals
+.header__title:lang(en) {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.header__lang {
+  display: flex;
+  flex-shrink: 0;
+  gap: $space-xxs;
+}
+
+.header__lang-button {
+  padding: $space-xxs $space-xs;
+  border: 1px solid $color-text-muted;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $color-white;
+  font: inherit;
+  font-size: $font-size-small;
+  cursor: pointer;
+}
+
+.header__lang-button--active {
+  border-color: $color-primary;
+  background: $color-primary;
+  font-weight: 700;
 }
 
 @include up(md) {
