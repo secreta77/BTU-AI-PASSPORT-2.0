@@ -13,13 +13,13 @@ Jury checks 14 scenarios: `docs/demo-scenarios.md`. This file is the summary of 
 - Keep answers short. Show only changed parts of code in explanations, not whole files.
 - Do not run long/expensive commands (full builds, installs) without asking.
 
-## How to work with Giorgi
+## How to work with the team
 - Reply in Georgian, short and simple. Technical terms, code and code comments in English.
 - One small step at a time (1–3 files). For bigger tasks first list the steps and wait.
 - Before writing code: explain the problem and approach, wait for approval. Always ask before changing existing code.
 - Minimal, targeted changes. No broad rewrites.
 - No new npm packages without approval and a reason.
-- Giorgi is learning Angular (STEP course). After each step reply in this format, then STOP:
+- We are both learning (Angular comes from the STEP course), so explain step by step. After each step reply in this format, then STOP:
   1. რა გავაკეთე — 1–2 sentences
   2. ფაილები — created/changed
   3. როგორ მუშაობს — main idea in plain words
@@ -129,7 +129,7 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 
 ## Test data (`docs/test-data.xlsx`)
 - Sheet "Passport Skill Records": 60 records, 18 students, 16 skills (SKL-001…016).
-- Header on row 3; Technical Notes block at the bottom must be skipped.
+- Header row is found by "Student ID" in the first cell (row 4 today); Technical Notes block at the bottom must be skipped.
 - A–P: BTU input. Q–T: system-managed (Sync Status, Version, Synced At, Error).
 
 ## Open questions (organizers)
@@ -163,3 +163,4 @@ Google Sheets (BTU adds verified skills) → sync by Record ID → validate → 
 14. Git commits: never add `Co-Authored-By` or "Generated with Claude Code" lines. Commit message = short English description only.
 15. Git workflow: never commit to main directly. One feature branch per task (`feature/<name>`), start from up-to-date main, push the branch, merge via GitHub Pull Request.
 16. `server/config.js` is the only place that reads `.env` (loaded by the server folder, so scripts run from any directory). It does not fail on empty values: the module that needs a value checks it itself. Teammates only import `config`, they do not change the file.
+17. Contract: constructor(address issuer); only issuer can write. Giorgi deploys via Remix from any wallet; the issuer address belongs to Teammate (private key only in Teammate's server/.env). Verify page compares contract issuer with client/public/.well-known/btu-issuer.json.
