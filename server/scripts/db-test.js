@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import { pool } from '../db/pool.js';
 import {
   createPassport,
+  createOtp,
+  findActiveOtp,
   findAwardsByStudent,
   findIssuedSkillsByStudent,
   findStudentByEmail,
@@ -14,19 +16,23 @@ import {
   findVersionByCode,
   findVersionPdfPath,
   findVersionsByPassport,
+  increaseOtpAttempts,
   insertNewSkills,
   insertSkillAwards,
   insertStudent,
   insertSyncLog,
   listPassports,
+  markOtpUsed,
   saveIssuedVersion,
 } from '../db/queries.js';
+import { OTP } from '../shared/constants.js';
 
 const STUDENT_IDS = ['BTU-T-9901', 'BTU-T-9902'];
 const SKILL_IDS = ['SKL-991', 'SKL-992'];
 const PASSPORT_ID = 'BTU-AI-999901';
 const CODE_V1 = 'BTU-V-TEST-0001';
 const CODE_V2 = 'BTU-V-TEST-0002';
+const OTP_EMAIL = 'otp@test.invalid';
 const DOC_HASH = 'a'.repeat(64);
 const TX_HASH = `0x${'b'.repeat(64)}`;
 
@@ -51,6 +57,7 @@ async function removeFakeData() {
   await pool.query('DELETE FROM students WHERE student_id = ANY($1)', [STUDENT_IDS]);
   await pool.query('DELETE FROM skills WHERE skill_id = ANY($1)', [SKILL_IDS]);
   await pool.query("DELETE FROM sync_log WHERE student_id = ANY($1) OR record_id LIKE 'TEST-%'", [STUDENT_IDS]);
+  await pool.query('DELETE FROM otp_codes WHERE email = $1', [OTP_EMAIL]);
 }
 
 // Two students (only the first one has a passport), two skills and two new awards for the first student.
@@ -232,6 +239,42 @@ try {
   });
   await check('findStudentByEmail: unknown email -> null', async () => {
     assert.equal(await findStudentByEmail('nobody@test.invalid'), null);
+  });
+
+  console.log('Email login code (OTP)');
+  const expiresAt = new Date(Date.now() + OTP.VALID_MINUTES * 60 * 1000);
+  let firstOtpId = null;
+  await check('findActiveOtp: no code yet -> null', async () => {
+    assert.equal(await findActiveOtp(OTP_EMAIL), null);
+  });
+  await check('createOtp + findActiveOtp: new code, 0 attempts, upper case email works', async () => {
+    firstOtpId = await createOtp({ email: OTP_EMAIL, codeHash: 'hash-1', expiresAt });
+    const found = await findActiveOtp('OTP@Test.Invalid');
+    assert.equal(found.id, firstOtpId);
+    assert.equal(found.codeHash, 'hash-1');
+    assert.equal(found.attempts, 0);
+    assert.equal(found.expiresAt.getTime(), expiresAt.getTime());
+  });
+  await check('increaseOtpAttempts: counts up to the limit, then null', async () => {
+    for (let expected = 1; expected <= OTP.MAX_ATTEMPTS; expected += 1) {
+      assert.equal(await increaseOtpAttempts(firstOtpId), expected);
+    }
+    assert.equal(await increaseOtpAttempts(firstOtpId), null);
+    assert.equal((await findActiveOtp(OTP_EMAIL)).attempts, OTP.MAX_ATTEMPTS);
+  });
+  await check('createOtp: a new code replaces the old one', async () => {
+    const secondOtpId = await createOtp({ email: OTP_EMAIL, codeHash: 'hash-2', expiresAt });
+    assert.notEqual(secondOtpId, firstOtpId);
+    const found = await findActiveOtp(OTP_EMAIL);
+    assert.equal(found.id, secondOtpId);
+    assert.equal(found.codeHash, 'hash-2');
+    assert.equal(found.attempts, 0);
+  });
+  await check('markOtpUsed: works once, then the code is gone', async () => {
+    const active = await findActiveOtp(OTP_EMAIL);
+    assert.equal(await markOtpUsed(active.id), true);
+    assert.equal(await markOtpUsed(active.id), false);
+    assert.equal(await findActiveOtp(OTP_EMAIL), null);
   });
 } finally {
   await removeFakeData().catch((error) => console.error('Cleanup failed:', error.message));

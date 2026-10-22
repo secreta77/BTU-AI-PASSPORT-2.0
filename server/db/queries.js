@@ -4,7 +4,7 @@
 // - `db` is the LAST argument. It is the shared `pool` or the client of a running transaction.
 // - Rows come back as camelCase objects. Names follow sheets/reader.js (`studentStatus`, `firstIssued`, ...),
 //   so one field has one name from the Sheet to the DB to the PDF (see docs/api.md).
-import { VERSION_STATUS } from '../shared/constants.js';
+import { OTP, VERSION_STATUS } from '../shared/constants.js';
 import { pool } from './pool.js';
 
 // "first_name" -> "firstName"
@@ -416,4 +416,59 @@ export async function findSyncLog({ level = null, limit = 100 } = {}, db = pool)
     [level, limit],
   );
   return rows.map(toCamelCase);
+}
+
+// ---------- Email login code (OTP) ----------
+// The code itself is never stored, only its hash. The auth service creates the code, hashes it and decides
+// what "expired" and "locked" mean; these queries only store, read and count.
+
+// Stores a new code. Earlier unused codes of the same email stop working at the same moment:
+// one statement, so there is never a time when two codes are valid. Returns the id of the new code.
+export async function createOtp({ email, codeHash, expiresAt }, db = pool) {
+  const { rows } = await db.query(
+    `WITH retired AS (
+       UPDATE otp_codes SET used_at = now()
+       WHERE lower(email) = lower($1) AND used_at IS NULL
+     )
+     INSERT INTO otp_codes (email, code_hash, expires_at)
+     VALUES ($1, $2, $3)
+     RETURNING id`,
+    [email, codeHash, expiresAt],
+  );
+  return rows[0].id;
+}
+
+// The newest code of this email that is not used yet, or null (no code requested, or already used).
+// It is returned even when it has expired: the auth service compares expiresAt and answers OTP_EXPIRED
+// instead of INVALID_OTP. Returns { id, codeHash, attempts, expiresAt }.
+export async function findActiveOtp(email, db = pool) {
+  const { rows } = await db.query(
+    `SELECT id, code_hash, attempts, expires_at
+     FROM otp_codes
+     WHERE lower(email) = lower($1) AND used_at IS NULL
+     ORDER BY id DESC
+     LIMIT 1`,
+    [email],
+  );
+  return rows.length === 0 ? null : toCamelCase(rows[0]);
+}
+
+// Counts one wrong attempt and returns the new number. Returns null when the limit is already reached
+// (the number never goes above OTP.MAX_ATTEMPTS, the database would reject it).
+export async function increaseOtpAttempts(id, db = pool) {
+  const { rows } = await db.query(
+    'UPDATE otp_codes SET attempts = attempts + 1 WHERE id = $1 AND attempts < $2 RETURNING attempts',
+    [id, OTP.MAX_ATTEMPTS],
+  );
+  return rows.length === 0 ? null : rows[0].attempts;
+}
+
+// A correct code works once. Returns true if this call used it, false if it was already used.
+// Two requests with the same code at the same moment: only one of them gets true.
+export async function markOtpUsed(id, db = pool) {
+  const { rowCount } = await db.query(
+    'UPDATE otp_codes SET used_at = now() WHERE id = $1 AND used_at IS NULL',
+    [id],
+  );
+  return rowCount > 0;
 }
