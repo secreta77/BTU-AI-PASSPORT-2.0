@@ -11,6 +11,7 @@
     "render-test": "node scripts/render-test.js",
     "db-check": "node scripts/db-check.js",
     "db-test": "node scripts/db-test.js",
+    "storage-check": "node scripts/storage-check.js",
     "chain-check": "node scripts/chain-check.js"
   },
   "dependencies": {
