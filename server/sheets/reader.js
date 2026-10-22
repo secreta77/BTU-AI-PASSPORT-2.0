@@ -2,9 +2,8 @@
 // (dev, offline). Both sources give the same shape: see rowsFromMatrix().
 import ExcelJS from 'exceljs';
 import { config } from '../config.js';
-import { getSheetsApi } from './googleClient.js';
+import { getSheetsApi, SHEET_NAME } from './googleClient.js';
 
-const SHEET_NAME = 'Passport Skill Records';
 const HEADER_FIRST_CELL = 'Student ID';
 const NOTES_FIRST_CELL_START = 'TECHNICAL NOTES';
 
