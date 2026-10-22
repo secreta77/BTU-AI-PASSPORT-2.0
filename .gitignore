@@ -6,3 +6,6 @@ output/
 dist/
 .angular/
 .qodo/
+
+# macOS
+.DS_Store

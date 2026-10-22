@@ -55,8 +55,9 @@ export const PAGE_3 = {
   ),
   // Offsets are measured down from the card top
   date: { offset: toSize(28), size: 8 },
-  // Stamp height follows the image aspect ratio. The backdrop is centered on the template asterisk.
-  stamp: { centerOffset: toSize(90), width: toSize(170) },
+  // The stamp is scaled to fit this box (aspect ratio kept): triangle and circle are tall, so height limits them.
+  // The box sits between the date and the skill name. The backdrop is centered on the template asterisk.
+  stamp: { centerOffset: toSize(98), maxWidth: toSize(150), maxHeight: toSize(100) },
   backdrop: { centerOffset: toSize(113), width: toSize(100), height: toSize(56) },
   skillName: { firstBaselineOffset: toSize(171), size: 10, lineHeight: 12, maxWidth: toSize(180), maxLines: 3 },
   category: { gapBelowName: 14, size: 10 },
@@ -71,7 +72,7 @@ export const PAGE_4 = {
   rowCenters: [0, 1, 2, 3, 4].map((index) =>
     toY(TABLE_FIRST_ROW_TOP_PX + TABLE_ROW_HEIGHT_PX * index + TABLE_ROW_HEIGHT_PX / 2),
   ),
-  stamp: { centerX: toX(218), width: toSize(120) },
+  stamp: { centerX: toX(218), maxWidth: toSize(110), maxHeight: toSize(64) }, // row height is 82px
   // Hides the template's decorative circle under the stamp in a filled row
   backdrop: { width: toSize(60), height: toSize(60) },
   // Text must stay inside the row: row height minus a small margin top and bottom
