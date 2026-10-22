@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from '../config.js';
 
 const SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
+export const SHEET_NAME = 'Passport Skill Records'; // the tab with the data, shared by the reader and the writer
 const serverDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export async function getSheetsApi() {
