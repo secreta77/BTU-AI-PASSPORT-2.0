@@ -160,7 +160,7 @@ function drawPage3(page, awards, fonts, stamps) {
 
     drawCenteredLine(page, formatDate(award.dateEarned), fonts.regular, PAGE_3.date.size, card.centerX, card.top - PAGE_3.date.offset);
     drawBackdrop(page, card.centerX, card.top - PAGE_3.backdrop.centerOffset, PAGE_3.backdrop);
-    drawStamp(page, stamps.get(award.skillCategory), card.centerX, card.top - PAGE_3.stamp.centerOffset, PAGE_3.stamp.width);
+    drawStamp(page, stamps.get(award.skillCategory), card.centerX, card.top - PAGE_3.stamp.centerOffset, PAGE_3.stamp);
 
     const nameLines = wrapText(award.skillName.toUpperCase(), fonts.bold, PAGE_3.skillName.size, PAGE_3.skillName.maxWidth)
       .slice(0, PAGE_3.skillName.maxLines);
@@ -181,7 +181,7 @@ function drawPage4(page, awards, fonts, stamps) {
     const centerY = PAGE_4.rowCenters[index];
 
     drawBackdrop(page, PAGE_4.stamp.centerX, centerY, PAGE_4.backdrop);
-    drawStamp(page, stamps.get(award.skillCategory), PAGE_4.stamp.centerX, centerY, PAGE_4.stamp.width);
+    drawStamp(page, stamps.get(award.skillCategory), PAGE_4.stamp.centerX, centerY, PAGE_4.stamp);
     const skillFits = drawWrappedCentered(page, award.skillName.toUpperCase(), fonts.bold, PAGE_4.skill, centerY);
     const descriptionFits = drawWrappedCentered(page, award.skillDescription.toUpperCase(), fonts.regular, PAGE_4.description, centerY);
     warnIfNotFitting(skillFits, award, 'skill name');
@@ -198,9 +198,11 @@ function drawPage4(page, awards, fonts, stamps) {
   });
 }
 
-// Height follows the image aspect ratio, so the stamp is never stretched
-function drawStamp(page, image, centerX, centerY, width) {
-  const height = (width * image.height) / image.width;
+// Scales the image to fit the box (maxWidth x maxHeight) without stretching it
+function drawStamp(page, image, centerX, centerY, { maxWidth, maxHeight }) {
+  const scale = Math.min(maxWidth / image.width, maxHeight / image.height);
+  const width = image.width * scale;
+  const height = image.height * scale;
   page.drawImage(image, { x: centerX - width / 2, y: centerY - height / 2, width, height });
 }
 
