@@ -7,6 +7,10 @@ if (!config.databaseUrl) {
   throw new Error('DATABASE_URL is empty. Fill it in server/.env (see server/.env.example).');
 }
 
+// A SQL date would become a JS Date object, and the timezone can shift the day (2026-09-12 -> 09-11).
+// We keep dates as plain "YYYY-MM-DD" text, like the Sheet reader and the PDF renderer expect.
+pg.types.setTypeParser(pg.types.builtins.DATE, (value) => value);
+
 export const pool = new pg.Pool({
   connectionString: config.databaseUrl,
   // Supabase only accepts encrypted connections. The traffic is still encrypted with this setting;
