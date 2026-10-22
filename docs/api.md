@@ -92,7 +92,7 @@ The logged-in student's own latest passport.
 }
 ```
 - `skills`: all skills already issued to the student, oldest `dateEarned` first. `earnedThrough` is `null` for now: the Sheet has no such column (open question 1).
-- Errors: `401 UNAUTHORIZED`, `404 PASSPORT_NOT_FOUND`.
+- Errors: `401 UNAUTHORIZED`, `404 PASSPORT_NOT_FOUND` (the student has no passport, or the first version is not issued yet).
 
 ### GET /api/student/passport/pdf
 The PDF of the latest version. Response is `application/pdf` with `Content-Disposition: attachment; filename="BTU-AI-000125-v2.pdf"`.

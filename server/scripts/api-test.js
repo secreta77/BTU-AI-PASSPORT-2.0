@@ -1,15 +1,21 @@
 // Dev helper: starts the REAL Express app on a free port with a FAKE database and sends real HTTP requests to it.
 // It checks status codes, JSON shapes and the error format of docs/api.md. Run: npm run api-test
+// The student login runs through the REAL login code and JWT check: only the database, the mail and Storage are fake.
 // It never touches the real database, Storage or chain, so it is safe to run any time.
 import assert from 'node:assert/strict';
 import { createApp } from '../app.js';
+import { requestOtp, verifyOtp } from '../auth/otpService.js';
 import { config } from '../config.js';
+import { sendPdf } from '../routes/sendPdf.js';
+import { createFakeLoginWorld } from './helpers/fakeLogin.js';
 
 const SECRET_RPC_URL = 'https://rpc.example/v2/SECRET-API-KEY'; // the server-only list; it must never reach the browser
 const PUBLIC_RPC_URLS = ['https://public-1.example', 'https://public-2.example'];
 const SITE_ORIGIN = 'https://btu-passport.example';
 
 config.publicBaseUrl = SITE_ORIGIN;
+config.jwtSecret = 'test-secret-0123456789abcdef';
+config.adminApiKey = 'test-admin-key-0123456789';
 config.chain.chainId = 11155111;
 config.chain.contractAddress = '0x7c90CbDcB0006819E5dfdfb8D36A74f0f3968509';
 config.chain.publicRpcUrls = PUBLIC_RPC_URLS;
@@ -32,8 +38,53 @@ const ledger = new Map([
   }],
 ]);
 
+// Students: 1 has a passport with 2 versions, 2 has a passport but no version yet, 3 has no passport, 4 has another passport
+const students = [
+  { studentId: 'BTU-T-0001', firstName: 'Giorgi', lastName: 'Kapanadze', email: 'giorgi@example.org' },
+  { studentId: 'BTU-T-0002', firstName: 'Nino', lastName: 'Beridze', email: 'nino@example.org' },
+  { studentId: 'BTU-T-0003', firstName: 'Ana', lastName: 'Gelashvili', email: 'ana@example.org' },
+  { studentId: 'BTU-T-0004', firstName: 'Luka', lastName: 'Noghaideli', email: 'luka@example.org' },
+];
+function makePassport(student, passportId, latest) {
+  return {
+    passportId, studentId: student.studentId, firstName: student.firstName, lastName: student.lastName,
+    program: 'Computer Science', educationLevel: "Bachelor's", studentStatus: 'Active', firstIssued: '2026-10-01', latest,
+  };
+}
+const passports = new Map([
+  ['BTU-T-0001', makePassport(students[0], 'BTU-AI-000125', {
+    versionId: 8, version: 2, verificationCode: 'BTU-V-AAAA-2222', issuedAt: ISSUED_AT, txHash: TX_HASH,
+    pdfPath: 'BTU-AI-000125/v2-BTU-V-AAAA-2222.pdf',
+  })],
+  ['BTU-T-0002', makePassport(students[1], 'BTU-AI-000126', null)],
+  ['BTU-T-0004', makePassport(students[3], 'BTU-AI-000130', {
+    versionId: 11, version: 1, verificationCode: 'BTU-V-BBBB-3333', issuedAt: ISSUED_AT, txHash: TX_HASH,
+    pdfPath: 'BTU-AI-000130/v1-BTU-V-BBBB-3333.pdf',
+  })],
+]);
+const skillsByStudent = new Map([
+  ['BTU-T-0001', [
+    { skillId: 'SKL-001', skillName: 'AI Literacy', skillCategory: 'AI Skill', skillDescription: 'Fundamentals.', earnedThrough: null, dateEarned: '2026-09-12' },
+    { skillId: 'SKL-004', skillName: 'Data Analysis', skillCategory: 'AI Applied Skill', skillDescription: 'Works with data.', earnedThrough: null, dateEarned: '2026-10-02' },
+  ]],
+]);
+const PDF_BYTES = Buffer.from('%PDF-1.7\nfake passport of Giorgi\n%%EOF\n');
+
 const world = { lookups: [], logged: [], failLookup: null };
+const loginWorld = createFakeLoginWorld(students);
+const studentWorld = { downloads: [], failDownload: false };
 const app = createApp({
+  student: {
+    requestOtp: (email) => requestOtp(email, loginWorld.deps),
+    verifyOtp: (email, code) => verifyOtp(email, code, loginWorld.deps),
+    findStudentPassport: async (studentId) => passports.get(studentId) ?? null,
+    findIssuedSkillsByStudent: async (studentId) => skillsByStudent.get(studentId) ?? [],
+    async downloadPdf(pdfPath) {
+      studentWorld.downloads.push(pdfPath);
+      if (studentWorld.failDownload) throw new Error(`Storage download failed for ${pdfPath}: bucket unreachable`);
+      return PDF_BYTES;
+    },
+  },
   verify: {
     async findVersionByCode(code) {
       world.lookups.push(code);
@@ -50,10 +101,11 @@ const baseUrl = `http://127.0.0.1:${server.address().port}`;
 
 async function call(path, { method = 'GET', headers = {}, body } = {}) {
   const response = await fetch(`${baseUrl}${path}`, { method, headers, body });
-  const text = await response.text();
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const text = bytes.toString('utf8');
   let json = null;
   try { json = JSON.parse(text); } catch { /* not JSON */ }
-  return { status: response.status, headers: response.headers, text, json };
+  return { status: response.status, headers: response.headers, text, json, bytes };
 }
 
 function assertError(result, status, code) {
@@ -63,6 +115,19 @@ function assertError(result, status, code) {
   assert.deepEqual(Object.keys(result.json.error).sort(), ['code', 'message']);
   assert.equal(result.json.error.code, code);
   assert.equal(typeof result.json.error.message, 'string');
+}
+
+const jsonPost = (body) => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const bearer = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
+
+// A student logs in like in the browser: asks for a code, "reads" it from the mail, sends it back
+async function login(email) {
+  const requested = await call('/api/student/otp/request', jsonPost({ email }));
+  assert.equal(requested.status, 200, requested.text);
+  const code = loginWorld.mails.at(-1).code;
+  const verified = await call('/api/student/otp/verify', jsonPost({ email, code }));
+  assert.equal(verified.status, 200, verified.text);
+  return verified.json.token;
 }
 
 // ---------- Scenarios ----------
@@ -200,6 +265,174 @@ await scenario('CORS: only our own site may call the API from a browser', async 
 await scenario('the server does not say which framework it runs on', async () => {
   const result = await call('/api/health');
   assert.equal(result.headers.get('x-powered-by'), null);
+});
+
+
+// ----- Student -----
+
+const EXPECTED_PASSPORT = {
+  passportId: 'BTU-AI-000125',
+  firstName: 'Giorgi',
+  lastName: 'Kapanadze',
+  program: 'Computer Science',
+  educationLevel: "Bachelor's",
+  studentStatus: 'Active',
+  firstIssued: '2026-10-01',
+  latest: { version: 2, verificationCode: 'BTU-V-AAAA-2222', issuedAt: '2026-10-21T10:15:00.000Z', txHash: TX_HASH },
+  skills: [
+    {
+      skillId: 'SKL-001', skillName: 'AI Literacy', skillCategory: 'AI Skill', stampCode: 'BDG-AI-001',
+      skillDescription: 'Fundamentals.', earnedThrough: null, dateEarned: '2026-09-12',
+    },
+    {
+      skillId: 'SKL-004', skillName: 'Data Analysis', skillCategory: 'AI Applied Skill', stampCode: 'BDG-AI-002',
+      skillDescription: 'Works with data.', earnedThrough: null, dateEarned: '2026-10-02',
+    },
+  ],
+};
+
+await scenario('student login: ask for a code, read it from the mail, send it back, get a token for 2 hours', async () => {
+  const requested = await call('/api/student/otp/request', jsonPost({ email: 'giorgi@example.org' }));
+  assert.equal(requested.status, 200);
+  assert.deepEqual(requested.json, { ok: true });
+  assert.equal(loginWorld.mails.at(-1).email, 'giorgi@example.org');
+
+  const verified = await call('/api/student/otp/verify', jsonPost({ email: 'giorgi@example.org', code: loginWorld.mails.at(-1).code }));
+  assert.equal(verified.status, 200);
+  assert.deepEqual(Object.keys(verified.json).sort(), ['expiresIn', 'token']);
+  assert.equal(verified.json.expiresIn, 7200);
+  assert.equal(typeof verified.json.token, 'string');
+});
+
+await scenario('student passport: the exact JSON of docs/api.md with stamp codes, and no email, path or row ids', async () => {
+  const token = await login('giorgi@example.org');
+  const result = await call('/api/student/passport', bearer(token));
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.json, EXPECTED_PASSPORT);
+  for (const secret of ['giorgi@example.org', 'pdfPath', 'v2-BTU-V-AAAA-2222.pdf', 'versionId', 'BTU-T-0001']) {
+    assert(!result.text.includes(secret), `${secret} is in the answer`);
+  }
+});
+
+await scenario('student PDF: the latest version as a download, not cached, with a readable file name', async () => {
+  const token = await login('giorgi@example.org');
+  const result = await call('/api/student/passport/pdf', { headers: { ...bearer(token).headers, Origin: SITE_ORIGIN } });
+  assert.equal(result.status, 200);
+  assert.equal(result.headers.get('content-type'), 'application/pdf');
+  assert.equal(result.headers.get('content-disposition'), 'attachment; filename="BTU-AI-000125-v2.pdf"');
+  assert.equal(result.headers.get('cache-control'), 'no-store');
+  assert.equal(result.headers.get('content-length'), String(PDF_BYTES.length));
+  assert.match(result.headers.get('access-control-expose-headers'), /Content-Disposition/);
+  assert.deepEqual(result.bytes, PDF_BYTES);
+  assert.equal(studentWorld.downloads.at(-1), 'BTU-AI-000125/v2-BTU-V-AAAA-2222.pdf');
+});
+
+await scenario('student endpoints without a valid token are 401 UNAUTHORIZED', async () => {
+  const wrongSecretToken = (await import('jsonwebtoken')).default.sign({ sub: 'BTU-T-0001' }, 'another-secret-0123456789abcdef');
+  const attempts = [
+    {},
+    { headers: { Authorization: 'Bearer garbage' } },
+    { headers: { Authorization: `Bearer ${wrongSecretToken}` } },
+    { headers: { 'X-Admin-Key': config.adminApiKey } }, // the admin key is not a student login
+  ];
+  const downloadsBefore = studentWorld.downloads.length;
+  for (const attempt of attempts) {
+    assertError(await call('/api/student/passport', attempt), 401, 'UNAUTHORIZED');
+    assertError(await call('/api/student/passport/pdf', attempt), 401, 'UNAUTHORIZED');
+  }
+  assert.equal(studentWorld.downloads.length, downloadsBefore, 'Storage was asked without a login');
+});
+
+await scenario('a student sees only their own passport, whatever the request says', async () => {
+  const token = await login('luka@example.org');
+  const trick = { headers: { ...bearer(token).headers, 'X-Student-Id': 'BTU-T-0001' } };
+  const result = await call('/api/student/passport?studentId=BTU-T-0001&passportId=BTU-AI-000125', trick);
+  assert.equal(result.json.passportId, 'BTU-AI-000130');
+  assert.equal(result.json.firstName, 'Luka');
+  assert.deepEqual(result.json.skills, []);
+
+  await call('/api/student/passport/pdf?passportId=BTU-AI-000125', trick);
+  assert.equal(studentWorld.downloads.at(-1), 'BTU-AI-000130/v1-BTU-V-BBBB-3333.pdf');
+});
+
+await scenario('no version issued yet, or no passport at all: 404 PASSPORT_NOT_FOUND on both endpoints', async () => {
+  for (const email of ['nino@example.org', 'ana@example.org']) {
+    const token = await login(email);
+    const downloadsBefore = studentWorld.downloads.length;
+    assertError(await call('/api/student/passport', bearer(token)), 404, 'PASSPORT_NOT_FOUND');
+    assertError(await call('/api/student/passport/pdf', bearer(token)), 404, 'PASSPORT_NOT_FOUND');
+    assert.equal(studentWorld.downloads.length, downloadsBefore);
+  }
+});
+
+await scenario('login request: an unknown email gets the same answer and no mail; bad input is 400 INVALID_REQUEST', async () => {
+  const mailsBefore = loginWorld.mails.length;
+  const unknown = await call('/api/student/otp/request', jsonPost({ email: 'nobody@example.org' }));
+  assert.equal(unknown.status, 200);
+  assert.deepEqual(unknown.json, { ok: true });
+  assert.equal(loginWorld.mails.length, mailsBefore);
+
+  for (const bad of [{}, { email: 'not-an-email' }, { email: 42 }, [], 'text', null]) {
+    assertError(await call('/api/student/otp/request', jsonPost(bad)), 400, 'INVALID_REQUEST');
+  }
+  assertError(await call('/api/student/otp/request', { method: 'POST' }), 400, 'INVALID_REQUEST'); // no body at all
+  assertError(await call('/api/student/otp/request', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: 'giorgi@example.org' }), 400, 'INVALID_REQUEST');
+  assert.equal(loginWorld.mails.length, mailsBefore);
+});
+
+await scenario('login check: a wrong code is 401 INVALID_OTP, 5 wrong codes lock it (429), an old code is 401 OTP_EXPIRED', async () => {
+  const email = 'giorgi@example.org';
+  await call('/api/student/otp/request', jsonPost({ email }));
+  const code = loginWorld.mails.at(-1).code;
+  const wrong = String((Number(code) + 1) % 1_000_000).padStart(6, '0');
+
+  for (let attempt = 1; attempt < 5; attempt += 1) {
+    assertError(await call('/api/student/otp/verify', jsonPost({ email, code: wrong })), 401, 'INVALID_OTP');
+  }
+  assertError(await call('/api/student/otp/verify', jsonPost({ email, code: wrong })), 429, 'OTP_LOCKED');
+  assertError(await call('/api/student/otp/verify', jsonPost({ email, code })), 429, 'OTP_LOCKED'); // also the right code now
+
+  await call('/api/student/otp/request', jsonPost({ email })); // a new code
+  const freshCode = loginWorld.mails.at(-1).code;
+  const realNow = loginWorld.now;
+  loginWorld.now = new Date(realNow.getTime() + 11 * 60_000);
+  try {
+    assertError(await call('/api/student/otp/verify', jsonPost({ email, code: freshCode })), 401, 'OTP_EXPIRED');
+  } finally {
+    loginWorld.now = realNow;
+  }
+});
+
+await scenario('login check: a code sent as a number, or without an email, is 400 INVALID_REQUEST', async () => {
+  assertError(await call('/api/student/otp/verify', jsonPost({ email: 'giorgi@example.org', code: 123456 })), 400, 'INVALID_REQUEST');
+  assertError(await call('/api/student/otp/verify', jsonPost({ code: '123456' })), 400, 'INVALID_REQUEST');
+  assertError(await call('/api/student/otp/verify', jsonPost({})), 400, 'INVALID_REQUEST');
+});
+
+await scenario('a Storage problem is a 500 with a generic text; the path is only in the log', async () => {
+  const token = await login('giorgi@example.org');
+  studentWorld.failDownload = true;
+  try {
+    const result = await call('/api/student/passport/pdf', bearer(token));
+    assertError(result, 500, 'INTERNAL_ERROR');
+    assert(!result.text.includes('BTU-AI-000125') && !result.text.includes('bucket'), 'details leaked to the caller');
+    assert(world.logged.at(-1).includes('bucket unreachable'), 'the problem was not logged');
+  } finally {
+    studentWorld.failDownload = false;
+  }
+});
+
+await scenario('student paths accept only their own methods', async () => {
+  assertError(await call('/api/student/passport', { method: 'POST' }), 404, 'NOT_FOUND');
+  assertError(await call('/api/student/otp/request'), 404, 'NOT_FOUND');
+  assertError(await call('/api/student/otp/verify'), 404, 'NOT_FOUND');
+});
+
+await scenario('a PDF file name with a quote or a line break is refused before it reaches a header', () => {
+  const fakeResponse = { set() { throw new Error('headers must not be set'); }, send() {} };
+  for (const unsafe of ['a"b.pdf', 'a\r\nSet-Cookie: x=1.pdf', '../secret.pdf', 'with space.pdf', '']) {
+    assert.throws(() => sendPdf(fakeResponse, PDF_BYTES, unsafe), /Unsafe PDF file name/);
+  }
 });
 
 server.close();
