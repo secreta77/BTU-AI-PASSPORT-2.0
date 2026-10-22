@@ -80,7 +80,11 @@ function getWriteContract() {
   if (config.chain.issuerPrivateKey === '') {
     throw new Error('ISSUER_PRIVATE_KEY is empty: set the BTU issuer wallet key in server/.env');
   }
-  const wallet = new ethers.Wallet(config.chain.issuerPrivateKey, getProvider());
+  // Accept the key with or without the 0x prefix
+  const privateKey = config.chain.issuerPrivateKey.startsWith('0x')
+    ? config.chain.issuerPrivateKey
+    : `0x${config.chain.issuerPrivateKey}`;
+  const wallet = new ethers.Wallet(privateKey, getProvider());
   cachedWriteContract = new ethers.Contract(requireContractAddress(), readAbi(), wallet);
   return cachedWriteContract;
 }
