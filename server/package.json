@@ -17,6 +17,7 @@
     "issue-test": "node scripts/issue-test.js",
     "sync-test": "node scripts/sync-test.js",
     "sync-run-test": "node scripts/sync-run-test.js",
+    "auth-test": "node scripts/auth-test.js",
     "chain-check": "node scripts/chain-check.js"
   },
   "dependencies": {

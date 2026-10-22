@@ -1,6 +1,7 @@
 // Validates sheet rows. Does not touch the DB. The only place for row validation rules.
 import {
   DATE_PATTERN,
+  EMAIL_PATTERN,
   ID_PATTERN,
   SKILL_CATEGORY,
   STUDENT_STATUS,
@@ -22,8 +23,6 @@ const REQUIRED_FIELDS = [
   ['skillDescription', 'Skill Description'],
   ['dateEarned', 'Date Earned'],
 ];
-
-const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+$/;
 
 export function validateRows(rows) {
   const valid = [];
