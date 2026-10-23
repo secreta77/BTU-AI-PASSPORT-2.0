@@ -1,0 +1,22 @@
+@use 'variables' as *;
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-xs;
+  padding: $space-xxs $space-sm;
+  border: 1px solid currentColor;
+  border-radius: $radius-md;
+  font-size: $font-size-small;
+  font-weight: 600;
+
+  &--latest {
+    color: $color-success;
+    background: $color-success-bg;
+  }
+
+  &--outdated {
+    color: $color-warning;
+    background: $color-warning-bg;
+  }
+}

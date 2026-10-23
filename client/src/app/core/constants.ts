@@ -25,3 +25,12 @@ export const LANGUAGE = {
 
 export const DEFAULT_LANGUAGE = LANGUAGE.KA;
 export const LANGUAGE_STORAGE_KEY = 'btu-lang';
+
+// Block explorer transaction page (Sepolia testnet, verify page link)
+export const TX_EXPLORER_URL = 'https://sepolia.etherscan.io/tx/';
+
+// What the status badge shows (decided by comparing version with latestVersion)
+export const VERSION_BADGE = {
+  LATEST: 'latest',
+  OUTDATED: 'outdated',
+} as const;

@@ -1,0 +1,142 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: $space-lg $space-md;
+
+  @include up(md) {
+    padding: $space-xl $space-lg;
+  }
+}
+
+.muted {
+  color: $color-text-muted;
+}
+
+.code-form {
+  margin-bottom: $space-lg;
+
+  &__label {
+    display: block;
+    margin-bottom: $space-xs;
+    font-weight: 600;
+  }
+
+  // Stacked on phones, side by side from 480px
+  &__row {
+    display: flex;
+    flex-direction: column;
+    gap: $space-xs;
+
+    @include up(sm) {
+      flex-direction: row;
+    }
+  }
+
+  &__input {
+    flex: 1;
+    min-width: 0;
+    padding: $space-sm $space-md;
+    border: 1px solid $color-border;
+    border-radius: $radius-md;
+    font-family: $font-family-mono;
+    font-size: $font-size-body;
+  }
+}
+
+.button {
+  padding: $space-sm $space-lg;
+  border: 0;
+  border-radius: $radius-md;
+  background: $color-primary;
+  color: $color-white;
+  font-size: $font-size-body;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card {
+  padding: $space-md;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-card;
+
+  @include up(md) {
+    padding: $space-lg;
+  }
+
+  &--error {
+    border-color: $color-error;
+    background: $color-error-bg;
+    color: $color-error;
+  }
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-sm;
+  }
+
+  &__sticker {
+    width: 100%;
+    max-width: 8rem;
+    height: auto;
+  }
+}
+
+.facts {
+  margin: 0;
+
+  &__row {
+    padding: $space-xs 0;
+    border-top: 1px solid $color-border;
+
+    @include up(sm) {
+      display: flex;
+      gap: $space-md;
+    }
+
+    dt {
+      color: $color-text-muted;
+
+      @include up(sm) {
+        flex: 0 0 10rem;
+      }
+    }
+
+    dd {
+      flex: 1;
+      min-width: 0;
+      margin: 0;
+    }
+  }
+
+  // Long ids and hashes must wrap instead of scrolling the page sideways
+  &__value--break {
+    word-break: break-all;
+  }
+
+  &__hash {
+    display: block;
+    font-family: $font-family-mono;
+    font-size: $font-size-small;
+    color: $color-text-muted;
+  }
+}
+
+.notice {
+  margin: $space-md 0 0;
+  padding: $space-sm $space-md;
+  border-radius: $radius-md;
+
+  &--warning {
+    background: $color-warning-bg;
+    color: $color-warning;
+  }
+}

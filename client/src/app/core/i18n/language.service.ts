@@ -5,6 +5,8 @@ import { ka, type TranslationKey, type Translations } from './ka';
 
 export type Language = (typeof LANGUAGE)[keyof typeof LANGUAGE];
 
+export type TranslateParams = Record<string, string | number>;
+
 const DICTIONARIES: Record<Language, Translations> = { ka, en };
 
 @Injectable({ providedIn: 'root' })
@@ -23,8 +25,16 @@ export class LanguageService {
     this.saveLanguage(language);
   }
 
-  translate(key: TranslationKey): string {
-    return DICTIONARIES[this.language()][key];
+  // params fill {name} placeholders, e.g. translate('verify.outdatedHint', { n: 2 })
+  translate(key: TranslationKey, params?: TranslateParams): string {
+    const text = DICTIONARIES[this.language()][key];
+    if (!params) {
+      return text;
+    }
+    return Object.entries(params).reduce(
+      (result, [name, value]) => result.replaceAll(`{${name}}`, String(value)),
+      text,
+    );
   }
 
   // localStorage can throw (private window, blocked site data), so fall back to the default

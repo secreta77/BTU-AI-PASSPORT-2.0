@@ -13,6 +13,27 @@ export const ka = {
   'verify.codeLabel': 'ვერიფიკაციის კოდი',
   'verify.enterCode': 'შეიყვანეთ ვერიფიკაციის კოდი.',
 
+  'verify.codePlaceholder': 'მაგ., BTU-V-7F3K-92QX',
+  'verify.submit': 'გადამოწმება',
+  'verify.loading': 'მიმდინარეობს გადამოწმება…',
+  'verify.found.title': 'ჩანაწერი მოიძებნა',
+  'verify.found.hint': 'კოდი BTU-ს რეესტრშია.',
+  'verify.passportId': 'პასპორტის ID',
+  'verify.version': 'ვერსია',
+  'verify.status': 'სტატუსი',
+  'verify.issuedAt': 'გაცემის თარიღი',
+  'verify.transaction': 'ტრანზაქცია',
+  'verify.viewOnEtherscan': 'იხილეთ Etherscan-ზე',
+  'verify.outdatedHint': 'არსებობს უფრო ახალი ვერსია: v{n}.',
+  'verify.notFound.title': 'უცნობი კოდი',
+  'verify.notFound.text': 'ასეთი კოდი ვერ მოიძებნა. შეამოწმეთ, სწორად არის თუ არა შეყვანილი.',
+  'verify.error.title': 'სერვერის შეცდომა',
+  'verify.error.text': 'გადამოწმება ახლა ვერ ხერხდება. სცადეთ მოგვიანებით.',
+  'verify.retry': 'სცადეთ ხელახლა',
+
+  'status.latest': 'უახლესი ვერსია',
+  'status.outdated': 'მოძველებული ვერსია',
+
   'login.title': 'შესვლა სტუდენტებისთვის',
   'login.subtitle': 'შესვლა ელფოსტით.',
 

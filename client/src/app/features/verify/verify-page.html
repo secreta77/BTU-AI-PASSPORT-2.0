@@ -1,0 +1,94 @@
+<h1>{{ 'verify.title' | t }}</h1>
+
+<form class="code-form" (submit)="submit($event)">
+  <label class="code-form__label" for="verification-code">{{ 'verify.codeLabel' | t }}</label>
+  <div class="code-form__row">
+    <input
+      id="verification-code"
+      class="code-form__input"
+      type="text"
+      autocomplete="off"
+      autocapitalize="characters"
+      spellcheck="false"
+      [formControl]="codeControl"
+      [placeholder]="'verify.codePlaceholder' | t"
+    />
+    <button class="button" type="submit">{{ 'verify.submit' | t }}</button>
+  </div>
+</form>
+
+@switch (state()) {
+  @case ('idle') {
+    <p class="muted">{{ 'verify.enterCode' | t }}</p>
+  }
+  @case ('loading') {
+    <p class="muted" role="status">{{ 'verify.loading' | t }}</p>
+  }
+  @case ('found') {
+    @if (info(); as record) {
+      <section class="card" aria-labelledby="result-title">
+        <div class="card__head">
+          <h2 id="result-title">{{ 'verify.found.title' | t }}</h2>
+          @if (isLatest()) {
+            <!-- Decorative sticker; the status text is in the badge -->
+            <img
+              class="card__sticker"
+              src="assets/stickers/blockchain-verified.png"
+              alt=""
+              width="1051"
+              height="429"
+            />
+          }
+        </div>
+        <p class="muted">{{ 'verify.found.hint' | t }}</p>
+
+        <dl class="facts">
+          <div class="facts__row">
+            <dt>{{ 'verify.passportId' | t }}</dt>
+            <dd class="facts__value--break">{{ record.passportId }}</dd>
+          </div>
+          <div class="facts__row">
+            <dt>{{ 'verify.version' | t }}</dt>
+            <dd>v{{ record.version }}</dd>
+          </div>
+          <div class="facts__row">
+            <dt>{{ 'verify.status' | t }}</dt>
+            <dd><app-status-badge [variant]="badgeVariant()" /></dd>
+          </div>
+          <div class="facts__row">
+            <dt>{{ 'verify.issuedAt' | t }}</dt>
+            <dd>{{ record.issuedAt | date: 'dd.MM.yyyy' : 'UTC' }}</dd>
+          </div>
+          <div class="facts__row">
+            <dt>{{ 'verify.transaction' | t }}</dt>
+            <dd class="facts__value--break">
+              <a [href]="txUrl()" target="_blank" rel="noopener noreferrer">
+                {{ 'verify.viewOnEtherscan' | t }}
+              </a>
+              <span class="facts__hash">{{ record.txHash }}</span>
+            </dd>
+          </div>
+        </dl>
+
+        @if (!isLatest()) {
+          <p class="notice notice--warning">
+            {{ 'verify.outdatedHint' | t: { n: record.latestVersion } }}
+          </p>
+        }
+      </section>
+    }
+  }
+  @case ('notFound') {
+    <section class="card card--error" aria-labelledby="result-title">
+      <h2 id="result-title"><span aria-hidden="true">❓</span> {{ 'verify.notFound.title' | t }}</h2>
+      <p>{{ 'verify.notFound.text' | t }}</p>
+    </section>
+  }
+  @case ('error') {
+    <section class="card card--error" role="alert" aria-labelledby="result-title">
+      <h2 id="result-title">{{ 'verify.error.title' | t }}</h2>
+      <p>{{ 'verify.error.text' | t }}</p>
+      <button class="button" type="button" (click)="retry()">{{ 'verify.retry' | t }}</button>
+    </section>
+  }
+}

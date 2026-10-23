@@ -16,6 +16,14 @@ $color-stamp-navy: #1f2a5c;
 $color-stamp-green: #2e7d32;
 $color-stamp-pink: #e91e8c;
 
+// Status colors (text color is always dark enough on its background)
+$color-success: #1b5e20;
+$color-success-bg: #e6f4e7;
+$color-warning: #7a4b00;
+$color-warning-bg: #fff4d6;
+$color-error: #b71c1c;
+$color-error-bg: #fdeaea;
+
 // Spacing scale: never above 4rem
 $space-xxs: 0.25rem;
 $space-xs: 0.5rem;
