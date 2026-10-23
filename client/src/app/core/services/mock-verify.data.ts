@@ -35,3 +35,12 @@ export const MOCK_VERIFY_INFO: Record<string, VerifyInfo> = {
     chain: MOCK_CHAIN,
   },
 };
+
+// Mock "chain" docHash per code. It is the SHA-256 of server/pdf/assets/template/Passport_Blank.pdf,
+// so that file counts as authentic in mock mode and any other PDF counts as modified.
+const MOCK_DOC_HASH = '71a2efef1135bb00785db023404867c4220701038965da5608e735908f65d5b9';
+
+export const MOCK_DOC_HASHES: Record<string, string> = {
+  [MOCK_CODE_LATEST]: MOCK_DOC_HASH,
+  [MOCK_CODE_OUTDATED]: MOCK_DOC_HASH,
+};

@@ -139,4 +139,49 @@
     background: $color-warning-bg;
     color: $color-warning;
   }
+
+  &--error {
+    background: $color-error-bg;
+    color: $color-error;
+  }
+
+  &--success {
+    background: $color-success-bg;
+    color: $color-success;
+  }
+}
+
+.block {
+  margin-top: $space-lg;
+  padding-top: $space-md;
+  border-top: 1px solid $color-border;
+
+  h3 {
+    margin: 0 0 $space-xs;
+    font-size: $font-size-large;
+  }
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: $space-xs;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check {
+  padding: $space-xs $space-sm;
+  border-radius: $radius-md;
+
+  &--ok {
+    background: $color-success-bg;
+    color: $color-success;
+  }
+
+  &--bad {
+    background: $color-error-bg;
+    color: $color-error;
+  }
 }

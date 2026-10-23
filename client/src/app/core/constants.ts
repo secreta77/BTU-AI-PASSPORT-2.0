@@ -34,3 +34,6 @@ export const VERSION_BADGE = {
   LATEST: 'latest',
   OUTDATED: 'outdated',
 } as const;
+
+// Published BTU issuer address (did:web style). The verify page compares it with the contract issuer().
+export const ISSUER_FILE_URL = '/.well-known/btu-issuer.json';

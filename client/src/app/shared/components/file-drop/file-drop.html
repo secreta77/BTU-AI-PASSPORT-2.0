@@ -1,0 +1,19 @@
+<div
+  class="drop"
+  [class.drop--active]="isDragging()"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave()"
+  (drop)="onDrop($event)"
+>
+  <p class="drop__text">{{ 'verify.file.drop' | t }}</p>
+  <button class="drop__button" type="button" (click)="fileInput.click()">
+    {{ 'verify.file.choose' | t }}
+  </button>
+  <input
+    #fileInput
+    hidden
+    type="file"
+    accept="application/pdf,.pdf"
+    (change)="onInputChange($event)"
+  />
+</div>
