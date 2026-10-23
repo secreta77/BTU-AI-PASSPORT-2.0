@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { studentGuard } from './core/guards/student.guard';
 
 // Each page is loaded only when its route is opened (lazy loading).
 // /verify and /verify/:code share one component, so the loader is defined once.
@@ -12,9 +13,9 @@ export const routes: Routes = [
     path: 'login',
     loadComponent: () => import('./features/student/login-page').then((m) => m.LoginPage),
   },
-  // studentGuard will be added together with the login
   {
     path: 'my-passport',
+    canActivate: [studentGuard],
     loadComponent: () =>
       import('./features/student/my-passport-page').then((m) => m.MyPassportPage),
   },

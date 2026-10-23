@@ -28,3 +28,9 @@ export interface Passport {
   latest: PassportLatestVersion;
   skills: PassportSkill[];
 }
+
+// Result of GET /api/student/passport/pdf: the file and the name the server chose
+export interface PdfDownload {
+  blob: Blob;
+  fileName: string;
+}

@@ -79,6 +79,7 @@ Dependencies: features → shared, core. shared → core/models only. Features n
 - Font sizes: body 0.875–1.125rem, headings max 2.5rem (`clamp(1.5rem, 4vw, 2.5rem)`).
 - Layout only with flexbox/grid. `position: absolute/fixed/sticky` only where unavoidable (modal, dropdown, tooltip, sticky header, badge) with a comment why. Never for alignment/spacing.
 - No `!important`, no inline styles. Prefer CSS-only solutions.
+- Shared UI classes (`.button`, `.notice`, `.card`) live only in `styles/_components.scss` (global). Never copy them into a component's SCSS; page-specific parts (e.g. `.card__head`) stay in the page.
 - Colors/fonts/spacing only from SCSS variables. BTU palette: orange #FF6B00, dark #2B2B2B, light gray cards, stamp colors (red, purple, navy, green, pink).
 
 ## System flow

@@ -1,0 +1,62 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: $space-lg $space-md;
+
+  @include up(md) {
+    padding: $space-xl $space-lg;
+  }
+}
+
+.muted {
+  color: $color-text-muted;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+
+  &__label {
+    font-weight: 600;
+  }
+
+  &__input {
+    width: 100%;
+    padding: $space-sm $space-md;
+    border: 1px solid $color-border;
+    border-radius: $radius-md;
+    font-size: $font-size-body;
+
+    &--code {
+      font-family: $font-family-mono;
+      font-size: $font-size-large;
+      letter-spacing: 0.25rem;
+    }
+  }
+}
+
+.link-button {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $color-primary;
+  font-size: $font-size-body;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+// The form already spaces its children with gap; the success notice sits above the form
+.form .notice {
+  margin: 0;
+}
+
+.notice--success {
+  margin: 0 0 $space-md;
+}

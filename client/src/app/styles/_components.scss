@@ -1,0 +1,57 @@
+// Shared UI classes used by several pages. Only here: never copy them into a component.
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.button {
+  padding: $space-sm $space-lg;
+  border: 0;
+  border-radius: $radius-md;
+  background: $color-primary;
+  color: $color-white;
+  font-size: $font-size-body;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.card {
+  padding: $space-md;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-card;
+
+  @include up(md) {
+    padding: $space-lg;
+  }
+
+  &--error {
+    border-color: $color-error;
+    background: $color-error-bg;
+    color: $color-error;
+  }
+}
+
+.notice {
+  margin: $space-md 0 0;
+  padding: $space-sm $space-md;
+  border-radius: $radius-md;
+
+  &--warning {
+    background: $color-warning-bg;
+    color: $color-warning;
+  }
+
+  &--error {
+    background: $color-error-bg;
+    color: $color-error;
+  }
+
+  &--success {
+    background: $color-success-bg;
+    color: $color-success;
+  }
+}

@@ -1,0 +1,112 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: $space-lg $space-md;
+
+  @include up(md) {
+    padding: $space-xl $space-lg;
+  }
+}
+
+.muted {
+  color: $color-text-muted;
+}
+
+.facts {
+  margin: 0 0 $space-md;
+
+  &__row {
+    padding: $space-xs 0;
+    border-top: 1px solid $color-border;
+
+    @include up(sm) {
+      display: flex;
+      gap: $space-md;
+    }
+
+    dt {
+      color: $color-text-muted;
+
+      @include up(sm) {
+        flex: 0 0 10rem;
+      }
+    }
+
+    dd {
+      flex: 1;
+      min-width: 0;
+      margin: 0;
+    }
+  }
+
+  // Own line, and normal word breaks (the value above breaks anywhere)
+  &__link {
+    display: block;
+    word-break: normal;
+  }
+
+  // Long ids and codes must wrap instead of scrolling the page sideways
+  &__value--break {
+    word-break: break-all;
+  }
+}
+
+.skills-title {
+  margin-top: $space-xl;
+}
+
+.skills {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill {
+  display: flex;
+  gap: $space-md;
+  padding: $space-md;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  // Stamps have different shapes: a fixed box, the picture is scaled to fit
+  &__stamp {
+    flex: 0 0 4rem;
+    width: 4rem;
+    height: 4rem;
+    object-fit: contain;
+
+    @include up(sm) {
+      flex-basis: 6rem;
+      width: 6rem;
+      height: 6rem;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    margin: 0 0 $space-xxs;
+    font-size: $font-size-large;
+  }
+
+  &__meta {
+    margin: 0 0 $space-xs;
+    color: $color-text-muted;
+    font-size: $font-size-small;
+  }
+
+  &__text {
+    margin: 0;
+  }
+}
