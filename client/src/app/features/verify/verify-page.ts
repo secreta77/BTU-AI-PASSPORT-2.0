@@ -4,15 +4,22 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { catchError, map, of, switchMap, tap } from 'rxjs';
-import { TX_EXPLORER_URL, VERSION_BADGE } from '../../core/constants';
+import { environment } from '../../../environments/environment';
+import { TX_EXPLORER_URL, VERIFY_RESULT, VERSION_BADGE } from '../../core/constants';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { VerifyInfo } from '../../core/models/verify.model';
+import { ChainCheck, VerifyInfo, VerifyResult } from '../../core/models/verify.model';
 import { ApiService } from '../../core/services/api.service';
+import { ChainVerifyService } from '../../core/services/chain-verify.service';
+import { HashService } from '../../core/services/hash.service';
+import { MOCK_DOC_HASHES } from '../../core/services/mock-verify.data';
+import { FileDrop } from '../../shared/components/file-drop/file-drop';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 
 const NOT_FOUND_HTTP_STATUS = 404;
 
 type PageState = 'idle' | 'loading' | 'found' | 'notFound' | 'error';
+type ChainState = 'idle' | 'checking' | 'done' | 'failed';
+type FileState = 'idle' | 'hashing' | 'done' | 'notPdf';
 
 interface LoadResult {
   state: PageState;
@@ -23,7 +30,7 @@ interface LoadResult {
 // so QR and manual entry follow the same path.
 @Component({
   selector: 'app-verify-page',
-  imports: [ReactiveFormsModule, DatePipe, TranslatePipe, StatusBadge],
+  imports: [ReactiveFormsModule, DatePipe, TranslatePipe, StatusBadge, FileDrop],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './verify-page.html',
   styleUrl: './verify-page.scss',
@@ -31,6 +38,8 @@ interface LoadResult {
 export class VerifyPage {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
+  private readonly chainVerify = inject(ChainVerifyService);
+  private readonly hashService = inject(HashService);
 
   // Filled from the :code route parameter (withComponentInputBinding), undefined on /verify
   readonly code = input<string>();
@@ -38,6 +47,15 @@ export class VerifyPage {
   protected readonly codeControl = new FormControl('', { nonNullable: true });
   protected readonly state = signal<PageState>('idle');
   protected readonly info = signal<VerifyInfo | null>(null);
+
+  // Blockchain check is skipped in mock mode (mock codes are not on the chain)
+  protected readonly showChain = !environment.useMockApi;
+  protected readonly chainState = signal<ChainState>('idle');
+  protected readonly chain = signal<ChainCheck | null>(null);
+
+  protected readonly fileState = signal<FileState>('idle');
+  protected readonly fileResult = signal<VerifyResult | null>(null);
+  protected readonly VERIFY_RESULT = VERIFY_RESULT;
 
   // Changes on every "try again" click so the same code is requested once more
   private readonly attempt = signal(0);
@@ -50,6 +68,30 @@ export class VerifyPage {
   });
 
   protected readonly isLatest = computed(() => this.badgeVariant() === VERSION_BADGE.LATEST);
+
+  // The hash a file is compared with: the one on the chain (mock mode: the mock hash, never the database)
+  private readonly expectedDocHash = computed(() => {
+    const info = this.info();
+    if (!info) {
+      return null;
+    }
+    if (!this.showChain) {
+      return MOCK_DOC_HASHES[info.verificationCode] ?? null;
+    }
+    const chain = this.chain();
+    return chain?.recordExists ? chain.docHash : null;
+  });
+
+  protected readonly canCheckFile = computed(() => this.expectedDocHash() !== null);
+
+  // On the chain the latest version is read from the contract, in mock mode from the mock answer
+  protected readonly fileComparedLatestVersion = computed(() => {
+    const chain = this.chain();
+    if (chain?.recordExists) {
+      return chain.latestVersion;
+    }
+    return this.info()?.latestVersion ?? 0;
+  });
 
   protected readonly txUrl = computed(() => {
     const info = this.info();
@@ -72,6 +114,9 @@ export class VerifyPage {
       .subscribe((result) => {
         this.state.set(result.state);
         this.info.set(result.info);
+        if (result.info && this.showChain) {
+          void this.runChainCheck(result.info);
+        }
       });
   }
 
@@ -89,6 +134,58 @@ export class VerifyPage {
     this.attempt.update((value) => value + 1);
   }
 
+  protected retryChain(): void {
+    const info = this.info();
+    if (info) {
+      void this.runChainCheck(info);
+    }
+  }
+
+  protected async checkFile(file: File): Promise<void> {
+    this.fileResult.set(null);
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      this.fileState.set('notPdf');
+      return;
+    }
+    this.fileState.set('hashing');
+    // The file stays in the browser: only its hash is computed here
+    const fileHash = await this.hashService.sha256Hex(await file.arrayBuffer());
+    this.fileResult.set(this.compareWithChain(fileHash));
+    this.fileState.set('done');
+  }
+
+  protected resetFile(): void {
+    this.fileState.set('idle');
+    this.fileResult.set(null);
+  }
+
+  private compareWithChain(fileHash: string): VerifyResult {
+    if (fileHash !== this.expectedDocHash()) {
+      return VERIFY_RESULT.MODIFIED;
+    }
+    const info = this.info();
+    const isLatest = !!info && info.version === this.fileComparedLatestVersion();
+    return isLatest ? VERIFY_RESULT.AUTHENTIC_LATEST : VERIFY_RESULT.AUTHENTIC_OUTDATED;
+  }
+
+  private async runChainCheck(info: VerifyInfo): Promise<void> {
+    this.chainState.set('checking');
+    this.chain.set(null);
+    try {
+      const chain = await this.chainVerify.check(info);
+      // The user may have entered another code while we were reading
+      if (this.info() !== info) {
+        return;
+      }
+      this.chain.set(chain);
+      this.chainState.set('done');
+    } catch {
+      if (this.info() === info) {
+        this.chainState.set('failed');
+      }
+    }
+  }
+
   private prepareRequest(code: string | undefined): void {
     if (!code) {
       return;
@@ -97,6 +194,9 @@ export class VerifyPage {
     this.codeControl.setValue(code);
     this.state.set('loading');
     this.info.set(null);
+    this.chain.set(null);
+    this.chainState.set('idle');
+    this.resetFile();
   }
 
   private loadInfo(code: string | undefined) {
