@@ -1,0 +1,20 @@
+[build]
+  base = "client"
+  command = "npm run build"
+  # Relative to base ("client"), matches Angular's default output folder
+  publish = "dist/BTU-AI-PASSPORT/browser"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+# TODO: the API is not online yet. When it is, add a proxy here, ABOVE the SPA redirect:
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://<api-host>/api/:splat"
+#   status = 200
+
+# SPA fallback: lets /verify/BTU-V-... open directly
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
