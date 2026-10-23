@@ -1,0 +1,48 @@
+<h1>{{ 'login.title' | t }}</h1>
+
+@if (step() === 'email') {
+  <p class="muted">{{ 'login.subtitle' | t }}</p>
+
+  <form class="form" (submit)="sendCode($event)">
+    <label class="form__label" for="login-email">{{ 'login.email.label' | t }}</label>
+    <input
+      id="login-email"
+      class="form__input"
+      type="email"
+      autocomplete="email"
+      [formControl]="emailControl"
+      [placeholder]="'login.email.placeholder' | t"
+    />
+    @if (errorKey(); as key) {
+      <p class="notice notice--error" role="alert">{{ key | t }}</p>
+    }
+    <button class="button" type="submit" [disabled]="busy()">
+      {{ (busy() ? 'login.sending' : 'login.sendCode') | t }}
+    </button>
+  </form>
+} @else {
+  <p class="notice notice--success" role="status">{{ 'login.codeSent' | t }}</p>
+
+  <form class="form" (submit)="login($event)">
+    <label class="form__label" for="login-code">{{ 'login.code.label' | t }}</label>
+    <!-- type="text" + inputmode: type="number" would drop leading zeros -->
+    <input
+      id="login-code"
+      class="form__input form__input--code"
+      type="text"
+      inputmode="numeric"
+      autocomplete="one-time-code"
+      maxlength="6"
+      [formControl]="codeControl"
+    />
+    @if (errorKey(); as key) {
+      <p class="notice notice--error" role="alert">{{ key | t }}</p>
+    }
+    <button class="button" type="submit" [disabled]="busy()">
+      {{ (busy() ? 'login.submitting' : 'login.submit') | t }}
+    </button>
+    <button class="link-button" type="button" (click)="changeEmail()">
+      {{ 'login.changeEmail' | t }}
+    </button>
+  </form>
+}

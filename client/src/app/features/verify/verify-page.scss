@@ -48,33 +48,7 @@
   }
 }
 
-.button {
-  padding: $space-sm $space-lg;
-  border: 0;
-  border-radius: $radius-md;
-  background: $color-primary;
-  color: $color-white;
-  font-size: $font-size-body;
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .card {
-  padding: $space-md;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
-  background: $color-card;
-
-  @include up(md) {
-    padding: $space-lg;
-  }
-
-  &--error {
-    border-color: $color-error;
-    background: $color-error-bg;
-    color: $color-error;
-  }
-
   &__head {
     display: flex;
     flex-wrap: wrap;
@@ -127,27 +101,6 @@
     font-family: $font-family-mono;
     font-size: $font-size-small;
     color: $color-text-muted;
-  }
-}
-
-.notice {
-  margin: $space-md 0 0;
-  padding: $space-sm $space-md;
-  border-radius: $radius-md;
-
-  &--warning {
-    background: $color-warning-bg;
-    color: $color-warning;
-  }
-
-  &--error {
-    background: $color-error-bg;
-    color: $color-error;
-  }
-
-  &--success {
-    background: $color-success-bg;
-    color: $color-success;
   }
 }
 

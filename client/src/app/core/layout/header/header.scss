@@ -32,6 +32,25 @@
   letter-spacing: 0.05em;
 }
 
+.header__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-xs $space-md;
+}
+
+// Same look for the links and the logout button
+.header__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $color-white;
+  font: inherit;
+  font-size: $font-size-small;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .header__lang {
   display: flex;
   flex-shrink: 0;

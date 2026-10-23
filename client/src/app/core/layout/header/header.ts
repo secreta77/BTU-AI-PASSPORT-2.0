@@ -1,8 +1,9 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { LANGUAGE } from '../../constants';
 import { LanguageService } from '../../i18n/language.service';
 import { TranslatePipe } from '../../i18n/translate.pipe';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-header',
@@ -12,9 +13,16 @@ import { TranslatePipe } from '../../i18n/translate.pipe';
 })
 export class Header {
   protected readonly languageService = inject(LanguageService);
+  protected readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
 
   protected readonly languages = [
     { code: LANGUAGE.KA, labelKey: 'lang.ka' },
     { code: LANGUAGE.EN, labelKey: 'lang.en' },
   ] as const;
+
+  protected logout(): void {
+    this.authService.logout();
+    void this.router.navigateByUrl('/login');
+  }
 }

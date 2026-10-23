@@ -5,3 +5,9 @@ export interface ApiErrorBody {
     message: string; // for people
   };
 }
+
+// Reads error.error.code from a failed HttpClient call; null if the body has another shape
+export function getApiErrorCode(error: unknown): string | null {
+  const body = (error as { error?: Partial<ApiErrorBody> } | null)?.error;
+  return body?.error?.code ?? null;
+}
