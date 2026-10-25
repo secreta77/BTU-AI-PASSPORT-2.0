@@ -31,7 +31,7 @@ Jury checks 14 scenarios: `docs/demo-scenarios.md`. This file is the summary of 
 - statuses (`latest`, `superseded`, `SYNCED`, `NOT SYNCED`, 4 verify results), badge codes, ID formats → `server/shared/constants.js` and `client/src/app/core/constants.ts` (no magic strings)
 - models/types → `core/models/`
 - PDF coordinates → only `server/pdf/layout.js`
-- colors, spacing, breakpoints → only `styles/_variables.scss`, `_mixins.scss`
+- colors, spacing, breakpoints → only `projects/ui/src/styles/_variables.scss`, `_mixins.scss`
 - API URLs → only `ApiService` + `environment.ts`
 - validation → only `server/sheets/validator.js`
 - one API error format `{ error: { code, message } }` via one error middleware
@@ -59,16 +59,18 @@ Jury checks 14 scenarios: `docs/demo-scenarios.md`. This file is the summary of 
   - only Router, HttpClient, `studentGuard`, `authInterceptor`; NO NgRx, Tailwind, Angular Material or other external UI libraries (our own internal `client/projects/ui` library is not covered by this rule)
   - routes: `/verify`, `/verify/:code` (QR target), `/login`, `/my-passport` (guard), `/admin`
 
-## Frontend architecture: core / shared / features (mandatory)
+## Frontend architecture: core / features + UI library (mandatory)
 ```
 client/src/app/
-├── core/      services (providedIn root), guards, interceptors, models, constants, layout (header/footer)
-├── shared/    app-specific helpers only (pipes, directives, small dumb components) that would not fit another app
-├── features/  verify/, student/, admin/ — each lazy-loaded
-└── styles/    _variables.scss, _mixins.scss, _base.scss
+├── core/      services (providedIn root), guards, interceptors, models, constants, i18n, layout (header/footer)
+└── features/  verify/, student/, admin/ — each lazy-loaded
+client/projects/ui/   reusable UI library, imported as `@btu/ui` (path alias, no separate build)
+├── src/lib/      components (selector prefix `ui-`)
+├── src/styles/   _variables.scss, _mixins.scss, _base.scss, _components.scss (SCSS tokens, found by `includePaths` in angular.json)
+└── src/public-api.ts   every export
 ```
-Dependencies: features → shared, core. shared → core/models only. Features never import each other; shared needs go to shared/ or core/. Before creating a file, say which layer and why.
-Reusable UI (components, design tokens, shared SCSS) goes to the `client/projects/ui` library (see Frontend quality standards). Until the library is created, existing `shared/` components stay in place and move to the library in its own step.
+Dependencies: features → core, `@btu/ui`. Features never import each other. Before creating a file, say which layer and why.
+**UI library rule:** UI used twice → `projects/ui`. The library never imports app code (no services, no `core/`, no HTTP, no `LanguageService`/`t` pipe); all texts come in through `input()` and the page passes translated strings. A `shared/` folder inside the app exists only if app-specific helpers (pipes, directives) appear; reusable components do not go there. New library components: standalone, OnPush, signals, a11y, exported in `public-api.ts`, with a small spec and a line in `projects/ui/README.md`.
 
 ## Styling rules (mandatory)
 - Mobile-first; larger screens via `min-width` mixins (480, 768, 1024, 1280px only from `_mixins.scss`).
@@ -80,7 +82,7 @@ Reusable UI (components, design tokens, shared SCSS) goes to the `client/project
 - Font sizes: body 0.875–1.125rem, headings max 2.5rem (`clamp(1.5rem, 4vw, 2.5rem)`).
 - Layout only with flexbox/grid. `position: absolute/fixed/sticky` only where unavoidable (modal, dropdown, tooltip, sticky header, badge) with a comment why. Never for alignment/spacing.
 - No `!important`, no inline styles. Prefer CSS-only solutions.
-- Shared UI classes (`.button`, `.notice`, `.card`) live only in `styles/_components.scss` (global). Never copy them into a component's SCSS; page-specific parts (e.g. `.card__head`) stay in the page.
+- Shared UI classes (`.button`, `.notice`, `.card`) live only in `projects/ui/src/styles/_components.scss` (global). Never copy them into a component's SCSS; page-specific parts (e.g. `.card__head`) stay in the page.
 - Colors/fonts/spacing only from SCSS variables. BTU palette: orange #FF6B00, dark #2B2B2B, light gray cards, stamp colors (red, purple, navy, green, pink).
 
 ## Frontend quality standards (mandatory for all new code)

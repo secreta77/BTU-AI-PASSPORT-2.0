@@ -1,4 +1,4 @@
 <span class="badge" [class.badge--latest]="isLatest()" [class.badge--outdated]="!isLatest()">
   <span aria-hidden="true">{{ isLatest() ? '✅' : '🟡' }}</span>
-  {{ (isLatest() ? 'status.latest' : 'status.outdated') | t: language() }}
+  {{ label() }}
 </span>

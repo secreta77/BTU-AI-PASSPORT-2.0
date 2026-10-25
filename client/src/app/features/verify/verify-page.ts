@@ -14,6 +14,7 @@ import {
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { FileDrop, Skeleton, StatusBadge } from '@btu/ui';
 import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { TX_EXPLORER_URL, VERIFY_RESULT, VERSION_BADGE } from '../../core/constants';
@@ -24,9 +25,6 @@ import { ApiService } from '../../core/services/api.service';
 import { ChainVerifyService } from '../../core/services/chain-verify.service';
 import { HashService } from '../../core/services/hash.service';
 import { MOCK_DOC_HASHES } from '../../core/services/mock-verify.data';
-import { FileDrop } from '../../shared/components/file-drop/file-drop';
-import { Skeleton } from '../../shared/components/skeleton/skeleton';
-import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 
 const NOT_FOUND_HTTP_STATUS = 404;
 

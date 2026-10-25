@@ -11,20 +11,20 @@
   @case ('loading') {
     <div aria-hidden="true">
       <section class="card card--skeleton">
-        <app-skeleton variant="title" />
-        <app-skeleton variant="line" />
-        <app-skeleton variant="line" />
-        <app-skeleton variant="line" />
-        <app-skeleton variant="line-short" />
+        <ui-skeleton variant="title" />
+        <ui-skeleton variant="line" />
+        <ui-skeleton variant="line" />
+        <ui-skeleton variant="line" />
+        <ui-skeleton variant="line-short" />
       </section>
 
       <ul class="skills skills--skeleton">
         @for (item of skeletonItems; track item) {
           <li class="skill">
-            <app-skeleton variant="square" />
+            <ui-skeleton variant="square" />
             <div class="skill__body skill__body--skeleton">
-              <app-skeleton variant="line-short" />
-              <app-skeleton variant="line" />
+              <ui-skeleton variant="line-short" />
+              <ui-skeleton variant="line" />
             </div>
           </li>
         }

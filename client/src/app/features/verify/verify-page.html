@@ -34,12 +34,12 @@
   }
   @case ('loading') {
     <section class="card card--skeleton" aria-hidden="true">
-      <app-skeleton variant="title" />
-      <app-skeleton variant="line-short" />
-      <app-skeleton variant="line" />
-      <app-skeleton variant="line" />
-      <app-skeleton variant="line" />
-      <app-skeleton variant="block" />
+      <ui-skeleton variant="title" />
+      <ui-skeleton variant="line-short" />
+      <ui-skeleton variant="line" />
+      <ui-skeleton variant="line" />
+      <ui-skeleton variant="line" />
+      <ui-skeleton variant="block" />
     </section>
   }
   @case ('found') {
@@ -74,7 +74,12 @@
           </div>
           <div class="facts__row">
             <dt>{{ 'verify.status' | t: language() }}</dt>
-            <dd><app-status-badge [variant]="badgeVariant()" /></dd>
+            <dd>
+              <ui-status-badge
+                [variant]="badgeVariant()"
+                [label]="(isLatest() ? 'status.latest' : 'status.outdated') | t: language()"
+              />
+            </dd>
           </div>
           <div class="facts__row">
             <dt>{{ 'verify.issuedAt' | t: language() }}</dt>
@@ -109,8 +114,8 @@
             @switch (chainState()) {
               @case ('checking') {
                 <div class="block__skeleton" aria-hidden="true">
-                  <app-skeleton variant="line" />
-                  <app-skeleton variant="line-short" />
+                  <ui-skeleton variant="line" />
+                  <ui-skeleton variant="line-short" />
                 </div>
               }
               @case ('failed') {
@@ -176,9 +181,14 @@
             </div>
             @if (fileState() === 'idle' || fileState() === 'notPdf') {
               @defer (on viewport) {
-                <app-file-drop (fileChosen)="checkFile($event)" />
+                <ui-file-drop
+                  [dropText]="'verify.file.drop' | t: language()"
+                  [chooseText]="'verify.file.choose' | t: language()"
+                  accept="application/pdf,.pdf"
+                  (fileChosen)="checkFile($event)"
+                />
               } @placeholder {
-                <app-skeleton variant="block" />
+                <ui-skeleton variant="block" />
               }
             }
 

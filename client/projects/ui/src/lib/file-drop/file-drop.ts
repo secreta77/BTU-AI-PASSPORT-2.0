@@ -1,17 +1,17 @@
-import { ChangeDetectionStrategy, Component, output, signal, inject } from '@angular/core';
-import { LanguageService } from '../../../core/i18n/language.service';
-import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 
 // Dumb UI: drag & drop zone plus a "choose file" button. Only reports the chosen file.
 @Component({
-  selector: 'app-file-drop',
-  imports: [TranslatePipe],
+  selector: 'ui-file-drop',
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './file-drop.html',
   styleUrl: './file-drop.scss',
 })
 export class FileDrop {
-  protected readonly language = inject(LanguageService).language;
+  readonly dropText = input.required<string>();
+  readonly chooseText = input.required<string>();
+  // File types the picker offers, e.g. 'application/pdf,.pdf'
+  readonly accept = input('');
 
   readonly fileChosen = output<File>();
 
