@@ -7,6 +7,7 @@
     "start": "node index.js",
     "dev": "node --watch index.js",
     "sync": "node sync/syncService.js",
+    "tamper": "node scripts/tamper-pdf.js",
     "bootstrap": "node sync/bootstrap.js",
     "check-sheet": "node scripts/check-sheet.js",
     "write-check": "node scripts/write-check.js",
