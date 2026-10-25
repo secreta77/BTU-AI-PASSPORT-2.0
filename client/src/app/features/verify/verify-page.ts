@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgOptimizedImage } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -17,6 +17,7 @@ import { Router } from '@angular/router';
 import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { TX_EXPLORER_URL, VERIFY_RESULT, VERSION_BADGE } from '../../core/constants';
+import { LanguageService } from '../../core/i18n/language.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ChainCheck, VerifyInfo, VerifyResult } from '../../core/models/verify.model';
 import { ApiService } from '../../core/services/api.service';
@@ -24,6 +25,7 @@ import { ChainVerifyService } from '../../core/services/chain-verify.service';
 import { HashService } from '../../core/services/hash.service';
 import { MOCK_DOC_HASHES } from '../../core/services/mock-verify.data';
 import { FileDrop } from '../../shared/components/file-drop/file-drop';
+import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 
 const NOT_FOUND_HTTP_STATUS = 404;
@@ -41,12 +43,22 @@ interface LoadResult {
 // so QR and manual entry follow the same path.
 @Component({
   selector: 'app-verify-page',
-  imports: [ReactiveFormsModule, DatePipe, TranslatePipe, StatusBadge, FileDrop],
+  imports: [
+    ReactiveFormsModule,
+    DatePipe,
+    NgOptimizedImage,
+    TranslatePipe,
+    StatusBadge,
+    FileDrop,
+    Skeleton,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './verify-page.html',
   styleUrl: './verify-page.scss',
 })
 export class VerifyPage {
+  protected readonly language = inject(LanguageService).language;
+
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly chainVerify = inject(ChainVerifyService);

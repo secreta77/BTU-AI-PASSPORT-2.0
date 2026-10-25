@@ -1,10 +1,10 @@
-<h1>{{ 'login.title' | t }}</h1>
+<h1>{{ 'login.title' | t: language() }}</h1>
 
 @if (step() === 'email') {
-  <p class="muted">{{ 'login.subtitle' | t }}</p>
+  <p class="muted">{{ 'login.subtitle' | t: language() }}</p>
 
   <form class="form" (submit)="sendCode($event)">
-    <label class="form__label" for="login-email">{{ 'login.email.label' | t }}</label>
+    <label class="form__label" for="login-email">{{ 'login.email.label' | t: language() }}</label>
     <input
       id="login-email"
       class="form__input"
@@ -13,25 +13,25 @@
       [attr.aria-invalid]="errorKey() ? 'true' : null"
       [attr.aria-describedby]="errorKey() ? 'login-error' : null"
       [formControl]="emailControl"
-      [placeholder]="'login.email.placeholder' | t"
+      [placeholder]="'login.email.placeholder' | t: language()"
     />
     <!-- Always in the page, so screen readers announce a message when it appears -->
     <div class="form__status" id="login-error" aria-live="polite">
       @if (errorKey(); as key) {
-        <p class="notice notice--error">{{ key | t }}</p>
+        <p class="notice notice--error">{{ key | t: language() }}</p>
       }
     </div>
     <button class="button" type="submit" [disabled]="busy()">
-      {{ (busy() ? 'login.sending' : 'login.sendCode') | t }}
+      {{ (busy() ? 'login.sending' : 'login.sendCode') | t: language() }}
     </button>
   </form>
 } @else {
   <div aria-live="polite">
-    <p class="notice notice--success">{{ codeSentKey() | t }}</p>
+    <p class="notice notice--success">{{ codeSentKey() | t: language() }}</p>
   </div>
 
   <form class="form" (submit)="login($event)">
-    <label class="form__label" for="login-code">{{ 'login.code.label' | t }}</label>
+    <label class="form__label" for="login-code">{{ 'login.code.label' | t: language() }}</label>
     <!-- type="text" + inputmode: type="number" would drop leading zeros -->
     <input
       #codeInput
@@ -47,11 +47,11 @@
     />
     <div class="form__status" id="login-error" aria-live="polite">
       @if (errorKey(); as key) {
-        <p class="notice notice--error">{{ key | t }}</p>
+        <p class="notice notice--error">{{ key | t: language() }}</p>
       }
     </div>
     <button class="button" type="submit" [disabled]="busy()">
-      {{ (busy() ? 'login.submitting' : 'login.submit') | t }}
+      {{ (busy() ? 'login.submitting' : 'login.submit') | t: language() }}
     </button>
     <button
       class="link-button"
@@ -59,10 +59,13 @@
       [disabled]="busy() || resendSeconds() > 0"
       (click)="resendCode()"
     >
-      {{ (resendSeconds() > 0 ? 'login.resendIn' : 'login.resend') | t: { n: resendSeconds() } }}
+      {{
+        (resendSeconds() > 0 ? 'login.resendIn' : 'login.resend')
+          | t: language() : { n: resendSeconds() }
+      }}
     </button>
     <button class="link-button" type="button" [disabled]="busy()" (click)="changeEmail()">
-      {{ 'login.changeEmail' | t }}
+      {{ 'login.changeEmail' | t: language() }}
     </button>
   </form>
 }

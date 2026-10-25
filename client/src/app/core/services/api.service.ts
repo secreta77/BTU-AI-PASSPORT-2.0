@@ -18,8 +18,8 @@ import {
   MOCK_TOKEN_PREFIX,
 } from './mock-student.data';
 
-// Short pause so the loading state is visible in mock mode
-const MOCK_DELAY_MS = 400;
+// Long enough to see the loading skeletons in the browser (mock mode is for dev only)
+const MOCK_DELAY_MS = 800;
 
 // The only place that knows API URLs. Other methods are added together with their feature.
 @Injectable({ providedIn: 'root' })
@@ -75,7 +75,10 @@ export class ApiService {
       .pipe(
         map((response) => ({
           blob: response.body as Blob,
-          fileName: this.readFileName(response.headers.get('Content-Disposition'), fallbackFileName),
+          fileName: this.readFileName(
+            response.headers.get('Content-Disposition'),
+            fallbackFileName,
+          ),
         })),
       );
   }

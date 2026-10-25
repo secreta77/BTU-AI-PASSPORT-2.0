@@ -1,7 +1,9 @@
-<h1>{{ 'verify.title' | t }}</h1>
+<h1>{{ 'verify.title' | t: language() }}</h1>
 
 <form class="code-form" (submit)="submit($event)">
-  <label class="code-form__label" for="verification-code">{{ 'verify.codeLabel' | t }}</label>
+  <label class="code-form__label" for="verification-code">{{
+    'verify.codeLabel' | t: language()
+  }}</label>
   <div class="code-form__row">
     <input
       id="verification-code"
@@ -11,60 +13,76 @@
       autocapitalize="characters"
       spellcheck="false"
       [formControl]="codeControl"
-      [placeholder]="'verify.codePlaceholder' | t"
+      [placeholder]="'verify.codePlaceholder' | t: language()"
     />
     <button class="button" type="submit" [disabled]="state() === 'loading'">
-      {{ 'verify.submit' | t }}
+      {{ 'verify.submit' | t: language() }}
     </button>
   </div>
 </form>
 
+<!-- The live region always exists, so the screen reader announces the text when it appears -->
+<div aria-live="polite">
+  @if (state() === 'loading') {
+    <span class="sr-only">{{ 'verify.loading' | t: language() }}</span>
+  }
+</div>
+
 @switch (state()) {
   @case ('idle') {
-    <p class="muted">{{ 'verify.enterCode' | t }}</p>
+    <p class="muted">{{ 'verify.enterCode' | t: language() }}</p>
   }
   @case ('loading') {
-    <p class="muted" aria-live="polite">{{ 'verify.loading' | t }}</p>
+    <section class="card card--skeleton" aria-hidden="true">
+      <app-skeleton variant="title" />
+      <app-skeleton variant="line-short" />
+      <app-skeleton variant="line" />
+      <app-skeleton variant="line" />
+      <app-skeleton variant="line" />
+      <app-skeleton variant="block" />
+    </section>
   }
   @case ('found') {
     @if (info(); as record) {
       <section class="card" aria-labelledby="result-title">
         <div class="card__head">
-          <h2 #resultTitle id="result-title" tabindex="-1">{{ 'verify.found.title' | t }}</h2>
+          <h2 #resultTitle id="result-title" tabindex="-1">
+            {{ 'verify.found.title' | t: language() }}
+          </h2>
           @if (isLatest()) {
             <img
               class="card__sticker"
-              src="assets/stickers/blockchain-verified.png"
-              [alt]="'verify.sticker.alt' | t"
+              ngSrc="assets/stickers/blockchain-verified.png"
+              [alt]="'verify.sticker.alt' | t: language()"
               width="1051"
               height="429"
             />
           }
         </div>
-        <p class="muted">{{ 'verify.found.hint' | t }}</p>
+        <p class="muted">{{ 'verify.found.hint' | t: language() }}</p>
 
         <dl class="facts">
           <div class="facts__row">
-            <dt>{{ 'verify.passportId' | t }}</dt>
+            <dt>{{ 'verify.passportId' | t: language() }}</dt>
             <dd class="facts__value--break">{{ record.passportId }}</dd>
           </div>
           <div class="facts__row">
-            <dt>{{ 'verify.version' | t }}</dt>
+            <dt>{{ 'verify.version' | t: language() }}</dt>
             <dd>v{{ record.version }}</dd>
           </div>
           <div class="facts__row">
-            <dt>{{ 'verify.status' | t }}</dt>
+            <dt>{{ 'verify.status' | t: language() }}</dt>
             <dd><app-status-badge [variant]="badgeVariant()" /></dd>
           </div>
           <div class="facts__row">
-            <dt>{{ 'verify.issuedAt' | t }}</dt>
+            <dt>{{ 'verify.issuedAt' | t: language() }}</dt>
             <dd>{{ record.issuedAt | date: 'dd.MM.yyyy' : 'UTC' }}</dd>
           </div>
           <div class="facts__row">
-            <dt>{{ 'verify.transaction' | t }}</dt>
+            <dt>{{ 'verify.transaction' | t: language() }}</dt>
             <dd class="facts__value--break">
               <a [href]="txUrl()" target="_blank" rel="noopener noreferrer">
-                {{ 'verify.viewOnEtherscan' | t }}
+                {{ 'verify.viewOnEtherscan' | t: language() }}
               </a>
               <span class="facts__hash">{{ record.txHash }}</span>
             </dd>
@@ -73,24 +91,32 @@
 
         @if (!isLatest()) {
           <p class="notice notice--warning">
-            {{ 'verify.outdatedHint' | t: { n: record.latestVersion } }}
+            {{ 'verify.outdatedHint' | t: language() : { n: record.latestVersion } }}
           </p>
         }
 
         @if (showChain) {
           <section class="block" aria-labelledby="chain-title">
-            <h3 id="chain-title">{{ 'verify.chain.title' | t }}</h3>
-            <p class="muted">{{ 'verify.chain.hint' | t }}</p>
+            <h3 id="chain-title">{{ 'verify.chain.title' | t: language() }}</h3>
+            <p class="muted">{{ 'verify.chain.hint' | t: language() }}</p>
+            <div aria-live="polite">
+              @if (chainState() === 'checking') {
+                <span class="sr-only">{{ 'verify.chain.checking' | t: language() }}</span>
+              }
+            </div>
             @switch (chainState()) {
               @case ('checking') {
-                <p class="muted" aria-live="polite">{{ 'verify.chain.checking' | t }}</p>
+                <div class="block__skeleton" aria-hidden="true">
+                  <app-skeleton variant="line" />
+                  <app-skeleton variant="line-short" />
+                </div>
               }
               @case ('failed') {
                 <p class="notice notice--error" aria-live="polite">
-                  {{ 'verify.chain.failed' | t }}
+                  {{ 'verify.chain.failed' | t: language() }}
                 </p>
                 <button class="button" type="button" (click)="retryChain()">
-                  {{ 'verify.chain.retry' | t }}
+                  {{ 'verify.chain.retry' | t: language() }}
                 </button>
               }
               @case ('done') {
@@ -101,7 +127,7 @@
                         <span aria-hidden="true">{{ check.issuerMatches ? '✅' : '❌' }}</span>
                         {{
                           (check.issuerMatches ? 'verify.chain.issuerOk' : 'verify.chain.issuerBad')
-                            | t
+                            | t: language()
                         }}
                       </li>
                       <li
@@ -113,15 +139,16 @@
                           check.versionMatchesDatabase ? '✅' : '❌'
                         }}</span>
                         @if (check.versionMatchesDatabase) {
-                          {{ 'verify.chain.versionOk' | t: { n: check.version } }}
+                          {{ 'verify.chain.versionOk' | t: language() : { n: check.version } }}
                         } @else {
-                          {{ 'verify.chain.versionBad' | t }}
+                          {{ 'verify.chain.versionBad' | t: language() }}
                         }
                       </li>
                     </ul>
                   } @else {
                     <p class="notice notice--error" aria-live="polite">
-                      <span aria-hidden="true">❌</span> {{ 'verify.chain.notOnChain' | t }}
+                      <span aria-hidden="true">❌</span>
+                      {{ 'verify.chain.notOnChain' | t: language() }}
                     </p>
                   }
                 }
@@ -132,21 +159,26 @@
 
         @if (canCheckFile()) {
           <section class="block" aria-labelledby="file-title">
-            <h3 id="file-title">{{ 'verify.file.title' | t }}</h3>
-            <p class="muted">{{ 'verify.file.hint' | t }}</p>
+            <h3 id="file-title">{{ 'verify.file.title' | t: language() }}</h3>
+            <p class="muted">{{ 'verify.file.hint' | t: language() }}</p>
+
+            <!-- Live region stays in the DOM so the "only PDF" message is announced -->
+            <div aria-live="polite">
+              @if (fileState() === 'notPdf') {
+                <p class="notice notice--error">{{ 'verify.file.onlyPdf' | t: language() }}</p>
+              }
+            </div>
+            @if (fileState() === 'idle' || fileState() === 'notPdf') {
+              @defer (on viewport) {
+                <app-file-drop (fileChosen)="checkFile($event)" />
+              } @placeholder {
+                <app-skeleton variant="block" />
+              }
+            }
 
             @switch (fileState()) {
-              @case ('idle') {
-                <app-file-drop (fileChosen)="checkFile($event)" />
-              }
-              @case ('notPdf') {
-                <p class="notice notice--error" aria-live="polite">
-                  {{ 'verify.file.onlyPdf' | t }}
-                </p>
-                <app-file-drop (fileChosen)="checkFile($event)" />
-              }
               @case ('hashing') {
-                <p class="muted" aria-live="polite">{{ 'verify.file.hashing' | t }}</p>
+                <p class="muted" aria-live="polite">{{ 'verify.file.hashing' | t: language() }}</p>
               }
               @case ('done') {
                 @switch (fileResult()) {
@@ -154,30 +186,35 @@
                     <p class="notice notice--success">
                       <strong aria-live="polite"
                         ><span aria-hidden="true">✅</span>
-                        {{ 'verify.file.authentic' | t }}</strong
+                        {{ 'verify.file.authentic' | t: language() }}</strong
                       ><br />
-                      {{ 'verify.file.authenticText' | t }}
+                      {{ 'verify.file.authenticText' | t: language() }}
                     </p>
                   }
                   @case (VERIFY_RESULT.AUTHENTIC_OUTDATED) {
                     <p class="notice notice--warning">
                       <strong aria-live="polite"
-                        ><span aria-hidden="true">🟡</span> {{ 'verify.file.outdated' | t }}</strong
+                        ><span aria-hidden="true">🟡</span>
+                        {{ 'verify.file.outdated' | t: language() }}</strong
                       ><br />
-                      {{ 'verify.file.outdatedText' | t: { n: fileComparedLatestVersion() } }}
+                      {{
+                        'verify.file.outdatedText'
+                          | t: language() : { n: fileComparedLatestVersion() }
+                      }}
                     </p>
                   }
                   @default {
                     <p class="notice notice--error">
                       <strong aria-live="polite"
-                        ><span aria-hidden="true">❌</span> {{ 'verify.file.modified' | t }}</strong
+                        ><span aria-hidden="true">❌</span>
+                        {{ 'verify.file.modified' | t: language() }}</strong
                       ><br />
-                      {{ 'verify.file.modifiedText' | t }}
+                      {{ 'verify.file.modifiedText' | t: language() }}
                     </p>
                   }
                 }
                 <button class="button" type="button" (click)="resetFile()">
-                  {{ 'verify.file.another' | t }}
+                  {{ 'verify.file.another' | t: language() }}
                 </button>
               }
             }
@@ -189,16 +226,20 @@
   @case ('notFound') {
     <section class="card card--error" aria-labelledby="result-title">
       <h2 #resultTitle id="result-title" tabindex="-1">
-        <span aria-hidden="true">❓</span> {{ 'verify.notFound.title' | t }}
+        <span aria-hidden="true">❓</span> {{ 'verify.notFound.title' | t: language() }}
       </h2>
-      <p>{{ 'verify.notFound.text' | t }}</p>
+      <p>{{ 'verify.notFound.text' | t: language() }}</p>
     </section>
   }
   @case ('error') {
     <section class="card card--error" aria-labelledby="result-title">
-      <h2 #resultTitle id="result-title" tabindex="-1">{{ 'verify.error.title' | t }}</h2>
-      <p>{{ 'verify.error.text' | t }}</p>
-      <button class="button" type="button" (click)="retry()">{{ 'verify.retry' | t }}</button>
+      <h2 #resultTitle id="result-title" tabindex="-1">
+        {{ 'verify.error.title' | t: language() }}
+      </h2>
+      <p>{{ 'verify.error.text' | t: language() }}</p>
+      <button class="button" type="button" (click)="retry()">
+        {{ 'verify.retry' | t: language() }}
+      </button>
     </section>
   }
 }

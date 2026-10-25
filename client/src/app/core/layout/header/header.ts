@@ -13,6 +13,8 @@ import { AuthService } from '../../services/auth.service';
   styleUrl: './header.scss',
 })
 export class Header {
+  protected readonly language = inject(LanguageService).language;
+
   protected readonly languageService = inject(LanguageService);
   protected readonly authService = inject(AuthService);
   private readonly router = inject(Router);

@@ -79,14 +79,16 @@
   // Stamps have different shapes: a fixed box, the picture is scaled to fit
   &__stamp {
     flex: 0 0 4rem;
-    width: 4rem;
-    height: 4rem;
+    width: auto;
+    height: auto;
+    max-width: 4rem;
+    max-height: 4rem;
     object-fit: contain;
 
     @include up(sm) {
       flex-basis: 6rem;
-      width: 6rem;
-      height: 6rem;
+      max-width: 6rem;
+      max-height: 6rem;
     }
   }
 
@@ -109,4 +111,16 @@
   &__text {
     margin: 0;
   }
+}
+
+// Skeleton: same layout as the real card and list
+.card--skeleton,
+.skill__body--skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+}
+
+.skills--skeleton {
+  margin-top: $space-xl;
 }

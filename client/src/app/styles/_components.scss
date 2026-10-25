@@ -55,3 +55,16 @@
     color: $color-success;
   }
 }
+
+// Text for screen readers only (e.g. "loading" next to a skeleton)
+.sr-only {
+  position: absolute; // out of the layout but still read by screen readers
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

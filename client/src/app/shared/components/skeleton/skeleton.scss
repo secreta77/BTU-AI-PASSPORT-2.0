@@ -1,0 +1,59 @@
+@use 'variables' as *;
+
+:host {
+  display: block;
+  max-width: 100%;
+  border-radius: $radius-md;
+  background-color: $color-skeleton;
+  background-image: linear-gradient(
+    90deg,
+    $color-skeleton 0%,
+    $color-skeleton-highlight 50%,
+    $color-skeleton 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+:host(.skeleton--line) {
+  width: 100%;
+  height: 1rem;
+}
+
+:host(.skeleton--line-short) {
+  width: 60%;
+  height: 1rem;
+}
+
+:host(.skeleton--title) {
+  width: 50%;
+  height: 1.75rem;
+}
+
+:host(.skeleton--block) {
+  width: 100%;
+  height: 4rem;
+}
+
+// Same box as a stamp image, so the list does not jump when the real list arrives
+:host(.skeleton--square) {
+  flex: 0 0 4rem;
+  width: 4rem;
+  height: 4rem;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+// A static gray shape is enough for people who turned animations off
+@media (prefers-reduced-motion: reduce) {
+  :host {
+    animation: none;
+  }
+}

@@ -1,19 +1,21 @@
 <header class="header">
   <div class="header__inner">
-    <a class="header__title" routerLink="/verify">{{ 'header.title' | t }}</a>
+    <a class="header__title" routerLink="/verify">{{ 'header.title' | t: language() }}</a>
 
-    <nav class="header__nav" [attr.aria-label]="'header.title' | t">
+    <nav class="header__nav" [attr.aria-label]="'header.title' | t: language()">
       @if (authService.isLoggedIn()) {
-        <a class="header__link" routerLink="/my-passport">{{ 'header.myPassport' | t }}</a>
+        <a class="header__link" routerLink="/my-passport">{{
+          'header.myPassport' | t: language()
+        }}</a>
         <button class="header__link" type="button" (click)="logout()">
-          {{ 'header.logout' | t }}
+          {{ 'header.logout' | t: language() }}
         </button>
       } @else {
-        <a class="header__link" routerLink="/login">{{ 'header.login' | t }}</a>
+        <a class="header__link" routerLink="/login">{{ 'header.login' | t: language() }}</a>
       }
     </nav>
 
-    <div class="header__lang" role="group" [attr.aria-label]="'lang.label' | t">
+    <div class="header__lang" role="group" [attr.aria-label]="'lang.label' | t: language()">
       @for (lang of languages; track lang.code) {
         <button
           type="button"
@@ -22,7 +24,7 @@
           [attr.aria-pressed]="languageService.language() === lang.code"
           (click)="languageService.setLanguage(lang.code)"
         >
-          {{ lang.labelKey | t }}
+          {{ lang.labelKey | t: language() }}
         </button>
       }
     </div>

@@ -15,6 +15,7 @@ import { Router } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, exhaustMap, finalize, tap } from 'rxjs';
 import { API_ERROR_CODE, RESEND_COOLDOWN_SECONDS } from '../../core/constants';
 import type { TranslationKey } from '../../core/i18n/ka';
+import { LanguageService } from '../../core/i18n/language.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { getApiErrorCode } from '../../core/models/api-error.model';
 import { ApiService } from '../../core/services/api.service';
@@ -40,6 +41,8 @@ const VERIFY_ERROR_KEYS: Record<string, TranslationKey> = {
   styleUrl: './login-page.scss',
 })
 export class LoginPage {
+  protected readonly language = inject(LanguageService).language;
+
   private readonly api = inject(ApiService);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);

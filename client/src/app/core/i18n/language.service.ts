@@ -26,8 +26,13 @@ export class LanguageService {
   }
 
   // params fill {name} placeholders, e.g. translate('verify.outdatedHint', { n: 2 })
-  translate(key: TranslationKey, params?: TranslateParams): string {
-    const text = DICTIONARIES[this.language()][key];
+  // language defaults to the current one; the translate pipe passes it in to stay pure
+  translate(
+    key: TranslationKey,
+    params?: TranslateParams,
+    language: Language = this.language(),
+  ): string {
+    const text = DICTIONARIES[language][key];
     if (!params) {
       return text;
     }

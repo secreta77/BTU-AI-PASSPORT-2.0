@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgOptimizedImage } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,14 +15,18 @@ import { EMPTY, Observable, Subject, catchError, exhaustMap, finalize, map, of, 
 import {
   API_ERROR_CODE,
   SKILL_CATEGORY_KEY,
+  DEFAULT_STAMP_IMAGE_SIZE,
   STAMP_IMAGE_EXTENSION,
+  STAMP_IMAGE_SIZE,
   STAMP_IMAGE_URL,
 } from '../../core/constants';
 import type { TranslationKey } from '../../core/i18n/ka';
+import { LanguageService } from '../../core/i18n/language.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { getApiErrorCode } from '../../core/models/api-error.model';
 import { Passport } from '../../core/models/passport.model';
 import { ApiService } from '../../core/services/api.service';
+import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { FileDownloadService } from '../../core/services/file-download.service';
 
 type PageState = 'loading' | 'ready' | 'error';
@@ -37,12 +41,14 @@ const GENERIC_ERROR_KEY: TranslationKey = 'myPassport.error.generic';
 
 @Component({
   selector: 'app-my-passport-page',
-  imports: [DatePipe, RouterLink, TranslatePipe],
+  imports: [DatePipe, NgOptimizedImage, RouterLink, TranslatePipe, Skeleton],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './my-passport-page.html',
   styleUrl: './my-passport-page.scss',
 })
 export class MyPassportPage {
+  protected readonly language = inject(LanguageService).language;
+
   private readonly api = inject(ApiService);
   private readonly fileDownload = inject(FileDownloadService);
 
@@ -56,6 +62,9 @@ export class MyPassportPage {
 
   // The page title: focused when the passport arrives (tabindex=-1 in the template)
   private readonly pageTitle = viewChild<ElementRef<HTMLElement>>('pageTitle');
+
+  // Three placeholder rows while the skills list loads
+  protected readonly skeletonItems = [1, 2, 3];
 
   protected readonly downloading = signal(false);
   protected readonly downloadFailed = signal(false);
@@ -80,6 +89,10 @@ export class MyPassportPage {
   // Unknown category: show the raw text from the data instead of nothing
   protected categoryLabelKey(category: string): TranslationKey | null {
     return SKILL_CATEGORY_KEY[category] ?? null;
+  }
+
+  protected stampSize(stampCode: string): { width: number; height: number } {
+    return STAMP_IMAGE_SIZE[stampCode] ?? DEFAULT_STAMP_IMAGE_SIZE;
   }
 
   protected stampUrl(stampCode: string): string {

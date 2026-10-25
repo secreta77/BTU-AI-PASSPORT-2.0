@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, output, signal, inject } from '@angular/core';
+import { LanguageService } from '../../../core/i18n/language.service';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 
 // Dumb UI: drag & drop zone plus a "choose file" button. Only reports the chosen file.
@@ -10,6 +11,8 @@ import { TranslatePipe } from '../../../core/i18n/translate.pipe';
   styleUrl: './file-drop.scss',
 })
 export class FileDrop {
+  protected readonly language = inject(LanguageService).language;
+
   readonly fileChosen = output<File>();
 
   protected readonly isDragging = signal(false);
