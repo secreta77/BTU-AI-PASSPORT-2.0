@@ -1,0 +1,57 @@
+<section class="card" aria-labelledby="sync-title">
+  <h2 id="sync-title">{{ 'admin.sync.title' | t: language() }}</h2>
+
+  <button class="button" type="button" [disabled]="busy()" (click)="sync.start()">
+    {{ (sync.state() === 'starting' ? 'admin.sync.starting' : 'admin.sync.start') | t: language() }}
+  </button>
+
+  <!-- The live region always exists, so the screen reader announces the status when it changes -->
+  <div aria-live="polite">
+    @switch (sync.state()) {
+      @case ('running') {
+        <p class="notice notice--warning">
+          @if (sync.alreadyRunning()) {
+            {{ 'admin.sync.alreadyRunning' | t: language() }}
+          }
+          {{ 'admin.sync.running' | t: language() }}
+        </p>
+      }
+      @case ('done') {
+        <p class="notice notice--success">{{ 'admin.sync.done' | t: language() }}</p>
+      }
+      @case ('failed') {
+        <p class="notice notice--error">
+          {{ 'admin.sync.failed' | t: language() }}
+          @if (sync.status()?.error; as message) {
+            <span lang="en">{{ message }}</span>
+          }
+        </p>
+      }
+    }
+  </div>
+
+  @if (summary(); as data) {
+    <dl class="summary">
+      <div class="summary__item">
+        <dt>{{ 'admin.sync.rowsRead' | t: language() }}</dt>
+        <dd>{{ data.rowsRead }}</dd>
+      </div>
+      <div class="summary__item">
+        <dt>{{ 'admin.sync.newAwards' | t: language() }}</dt>
+        <dd>{{ data.newAwards }}</dd>
+      </div>
+      <div class="summary__item">
+        <dt>{{ 'admin.sync.versionsIssued' | t: language() }}</dt>
+        <dd>{{ data.versionsIssued }}</dd>
+      </div>
+      <div class="summary__item">
+        <dt>{{ 'admin.sync.duplicates' | t: language() }}</dt>
+        <dd>{{ data.duplicates }}</dd>
+      </div>
+      <div class="summary__item">
+        <dt>{{ 'admin.sync.errors' | t: language() }}</dt>
+        <dd>{{ data.errors }}</dd>
+      </div>
+    </dl>
+  }
+</section>

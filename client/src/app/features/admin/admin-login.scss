@@ -1,0 +1,28 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: $space-lg $space-md;
+
+  @include up(md) {
+    padding: $space-xl $space-lg;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+
+  &__input {
+    width: 100%;
+    padding: $space-sm;
+    border: 1px solid $color-text-muted;
+    border-radius: $radius-md;
+    font: inherit;
+  }
+}

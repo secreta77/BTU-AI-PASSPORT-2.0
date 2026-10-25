@@ -1,0 +1,56 @@
+<section aria-labelledby="log-title">
+  <h2 id="log-title">{{ 'admin.log.title' | t: language() }}</h2>
+
+  <!-- The live region always exists, so the screen reader announces the text when it appears -->
+  <div aria-live="polite">
+    @if (state() === 'loading') {
+      <span class="sr-only">{{ 'admin.loading' | t: language() }}</span>
+    }
+  </div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <ul class="log" aria-hidden="true">
+        @for (item of skeletonItems; track item) {
+          <li class="log__item">
+            <ui-skeleton variant="line-short" />
+            <ui-skeleton variant="line" />
+          </li>
+        }
+      </ul>
+    }
+    @case ('error') {
+      <div aria-live="polite">
+        <p class="notice notice--error">{{ 'admin.loadError' | t: language() }}</p>
+      </div>
+      <button class="button retry" type="button" (click)="reload()">
+        {{ 'verify.retry' | t: language() }}
+      </button>
+    }
+    @case ('ready') {
+      @if (items().length === 0) {
+        <p class="muted">{{ 'admin.log.empty' | t: language() }}</p>
+      } @else {
+        <ul class="log">
+          @for (item of items(); track item.id) {
+            <li
+              class="log__item"
+              [class.log__item--error]="item.level === levels.ERROR"
+              [class.log__item--duplicate]="item.level === levels.DUPLICATE"
+            >
+              <p class="log__meta">
+                <!-- The level is written as text too: color alone is not enough -->
+                <strong class="log__level">{{ levelKey(item.level) | t: language() }}</strong>
+                @if (item.sheetRow !== null) {
+                  · {{ 'admin.log.row' | t: language() }} {{ item.sheetRow }}
+                }
+                · {{ item.createdAt | date: 'dd.MM.yyyy HH:mm' : 'UTC' }}
+              </p>
+              <p class="log__message" lang="en">{{ item.message }}</p>
+            </li>
+          }
+        </ul>
+      }
+    }
+  }
+</section>

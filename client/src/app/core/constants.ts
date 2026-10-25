@@ -48,6 +48,8 @@ export const API_ERROR_CODE = {
   OTP_LOCKED: 'OTP_LOCKED',
   CODE_NOT_FOUND: 'CODE_NOT_FOUND',
   PASSPORT_NOT_FOUND: 'PASSPORT_NOT_FOUND',
+  VERSION_NOT_FOUND: 'VERSION_NOT_FOUND',
+  SYNC_ALREADY_RUNNING: 'SYNC_ALREADY_RUNNING',
 } as const;
 
 // Student session (sessionStorage: gone when the tab is closed)
@@ -55,6 +57,17 @@ export const AUTH_STORAGE_KEY = 'btu-student-session';
 
 // Only requests to this path get the Authorization header
 export const STUDENT_API_PATH = '/student/';
+
+// Admin key (sessionStorage: gone when the tab is closed). Never in code or environment files.
+export const ADMIN_KEY_STORAGE_KEY = 'btu-admin-key';
+export const ADMIN_KEY_HEADER = 'X-Admin-Key';
+
+// Only requests to this path get the admin key header
+export const ADMIN_API_PATH = '/admin/';
+
+// Admin page timing
+export const SYNC_POLL_INTERVAL_MS = 2000;
+export const SEARCH_DEBOUNCE_MS = 300;
 
 // Stamp image of a passport skill, e.g. /assets/stamps/BDG-AI-001.png
 export const STAMP_IMAGE_URL = '/assets/stamps/';

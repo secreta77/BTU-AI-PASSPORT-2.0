@@ -1,0 +1,100 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.muted {
+  color: $color-text-muted;
+}
+
+.retry {
+  margin-top: $space-sm;
+}
+
+.search {
+  &__label {
+    display: block;
+    margin-bottom: $space-xs;
+  }
+
+  &__input {
+    width: 100%;
+    max-width: 24rem;
+    margin-bottom: $space-md;
+    padding: $space-sm;
+    border: 1px solid $color-text-muted;
+    border-radius: $radius-md;
+    font: inherit;
+  }
+}
+
+// Narrow screens: cards. Hidden from 768px, where the table takes over.
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @include up(md) {
+    display: none;
+  }
+
+  &__id {
+    margin: 0 0 $space-xxs;
+    font-weight: 600;
+    word-break: break-all;
+  }
+
+  &__name {
+    margin: 0 0 $space-xxs;
+  }
+
+  &__meta {
+    margin: 0 0 $space-xxs;
+    color: $color-text-muted;
+    font-size: $font-size-small;
+    word-break: break-word;
+  }
+
+  &__link {
+    display: inline-block;
+    margin-top: $space-xs;
+  }
+}
+
+.card--skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+}
+
+// Wide screens: table. display: none also hides it from screen readers on narrow screens.
+.table-wrap {
+  display: none;
+  overflow-x: auto;
+
+  @include up(md) {
+    display: block;
+  }
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: $space-xs $space-sm;
+    border-bottom: 1px solid $color-border;
+    text-align: left;
+  }
+
+  th {
+    color: $color-text-muted;
+    font-size: $font-size-small;
+  }
+
+  &__break {
+    word-break: break-all;
+  }
+}

@@ -1,0 +1,91 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: $space-lg $space-md;
+
+  @include up(md) {
+    padding: $space-xl $space-lg;
+  }
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: $space-sm;
+}
+
+.passport-id {
+  margin: 0 0 $space-md;
+  color: $color-text-muted;
+  word-break: break-all;
+}
+
+.muted {
+  color: $color-text-muted;
+}
+
+.versions {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.version {
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $space-xs;
+  }
+
+  &__title {
+    margin: 0;
+  }
+}
+
+.facts {
+  margin: $space-sm 0 $space-md;
+
+  &__row {
+    padding: $space-xs 0;
+    border-top: 1px solid $color-border;
+
+    @include up(sm) {
+      display: flex;
+      gap: $space-md;
+    }
+
+    dt {
+      color: $color-text-muted;
+
+      @include up(sm) {
+        flex: 0 0 10rem;
+      }
+    }
+
+    dd {
+      flex: 1;
+      min-width: 0;
+      margin: 0;
+    }
+  }
+
+  // Long codes must wrap instead of scrolling the page sideways
+  &__value--break {
+    word-break: break-all;
+  }
+}
+
+.card--skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+}

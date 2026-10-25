@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard } from './core/guards/admin.guard';
 import { studentGuard } from './core/guards/student.guard';
 
 // Each page is loaded only when its route is opened (lazy loading).
@@ -18,6 +19,12 @@ export const routes: Routes = [
     canActivate: [studentGuard],
     loadComponent: () =>
       import('./features/student/my-passport-page').then((m) => m.MyPassportPage),
+  },
+  {
+    path: 'admin/passports/:id',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/admin/admin-passport-detail').then((m) => m.AdminPassportDetail),
   },
   {
     path: 'admin',

@@ -1,0 +1,116 @@
+<section aria-labelledby="passports-title">
+  <h2 id="passports-title">{{ 'admin.passports.title' | t: language() }}</h2>
+
+  <!-- The live region always exists, so the screen reader announces the text when it appears -->
+  <div aria-live="polite">
+    @if (state() === 'loading') {
+      <span class="sr-only">{{ 'admin.loading' | t: language() }}</span>
+    }
+  </div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <ul class="cards" aria-hidden="true">
+        @for (item of skeletonItems; track item) {
+          <li class="card card--skeleton">
+            <ui-skeleton variant="line-short" />
+            <ui-skeleton variant="line" />
+          </li>
+        }
+      </ul>
+    }
+    @case ('error') {
+      <div aria-live="polite">
+        <p class="notice notice--error">{{ 'admin.loadError' | t: language() }}</p>
+      </div>
+      <button class="button retry" type="button" (click)="reload()">
+        {{ 'verify.retry' | t: language() }}
+      </button>
+    }
+    @case ('ready') {
+      <label class="search__label" for="passport-search">
+        {{ 'admin.passports.search' | t: language() }}
+      </label>
+      <input id="passport-search" class="search__input" type="search" [formControl]="search" />
+
+      @if (visibleItems().length === 0) {
+        <p class="muted" aria-live="polite">{{ 'admin.passports.empty' | t: language() }}</p>
+      } @else {
+        <!-- Narrow screens: one card per passport -->
+        <ul class="cards">
+          @for (item of visibleItems(); track item.passportId) {
+            <li class="card">
+              <p class="cards__id">{{ item.passportId }}</p>
+              <p class="cards__name">{{ item.firstName }} {{ item.lastName }}</p>
+              <p class="cards__meta">{{ item.email }}</p>
+              <p class="cards__meta">
+                {{ 'admin.passports.col.version' | t: language() }}:
+                @if (item.latestVersion !== null) {
+                  v{{ item.latestVersion }}
+                } @else {
+                  {{ 'admin.passports.notIssued' | t: language() }}
+                }
+                · {{ 'admin.passports.col.skills' | t: language() }}: {{ item.skillCount }}
+              </p>
+              @if (item.lastIssuedAt) {
+                <p class="cards__meta">
+                  {{ 'admin.passports.col.lastIssued' | t: language() }}:
+                  {{ item.lastIssuedAt | date: 'dd.MM.yyyy' : 'UTC' }}
+                </p>
+              }
+              <a class="cards__link" [routerLink]="['/admin/passports', item.passportId]">
+                {{ 'admin.passports.open' | t: language() }}
+              </a>
+            </li>
+          }
+        </ul>
+
+        <!-- Wide screens: a table (scrolls sideways inside its wrapper if it is too wide) -->
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">{{ 'admin.passports.col.id' | t: language() }}</th>
+                <th scope="col">{{ 'admin.passports.col.name' | t: language() }}</th>
+                <th scope="col">{{ 'admin.passports.col.email' | t: language() }}</th>
+                <th scope="col">{{ 'admin.passports.col.version' | t: language() }}</th>
+                <th scope="col">{{ 'admin.passports.col.skills' | t: language() }}</th>
+                <th scope="col">{{ 'admin.passports.col.lastIssued' | t: language() }}</th>
+                <th scope="col">
+                  <span class="sr-only">{{ 'admin.passports.open' | t: language() }}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of visibleItems(); track item.passportId) {
+                <tr>
+                  <td>{{ item.passportId }}</td>
+                  <td>{{ item.firstName }} {{ item.lastName }}</td>
+                  <td class="table__break">{{ item.email }}</td>
+                  <td>
+                    @if (item.latestVersion !== null) {
+                      v{{ item.latestVersion }}
+                    } @else {
+                      {{ 'admin.passports.notIssued' | t: language() }}
+                    }
+                  </td>
+                  <td>{{ item.skillCount }}</td>
+                  <td>
+                    @if (item.lastIssuedAt) {
+                      {{ item.lastIssuedAt | date: 'dd.MM.yyyy' : 'UTC' }}
+                    }
+                  </td>
+                  <td>
+                    <a [routerLink]="['/admin/passports', item.passportId]">
+                      {{ 'admin.passports.open' | t: language() }}
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  }
+</section>
