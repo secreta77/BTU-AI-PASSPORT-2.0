@@ -56,18 +56,19 @@ Jury checks 14 scenarios: `docs/demo-scenarios.md`. This file is the summary of 
   - zoneless (v21 default): put every async result (fetch, ethers, crypto.subtle) into a signal or the view won't update
   - state with signals; RxJS only at HttpClient level
   - simple reactive forms; NOT Signal Forms (experimental)
-  - only Router, HttpClient, `studentGuard`, `authInterceptor`; NO NgRx, Angular Material, other UI libs, Tailwind
+  - only Router, HttpClient, `studentGuard`, `authInterceptor`; NO NgRx, Tailwind, Angular Material or other external UI libraries (our own internal `client/projects/ui` library is not covered by this rule)
   - routes: `/verify`, `/verify/:code` (QR target), `/login`, `/my-passport` (guard), `/admin`
 
 ## Frontend architecture: core / shared / features (mandatory)
 ```
 client/src/app/
 ├── core/      services (providedIn root), guards, interceptors, models, constants, layout (header/footer)
-├── shared/    reusable dumb UI: components (input()/output(), no HTTP, no own state), pipes, directives
+├── shared/    app-specific helpers only (pipes, directives, small dumb components) that would not fit another app
 ├── features/  verify/, student/, admin/ — each lazy-loaded
 └── styles/    _variables.scss, _mixins.scss, _base.scss
 ```
 Dependencies: features → shared, core. shared → core/models only. Features never import each other; shared needs go to shared/ or core/. Before creating a file, say which layer and why.
+Reusable UI (components, design tokens, shared SCSS) goes to the `client/projects/ui` library (see Frontend quality standards). Until the library is created, existing `shared/` components stay in place and move to the library in its own step.
 
 ## Styling rules (mandatory)
 - Mobile-first; larger screens via `min-width` mixins (480, 768, 1024, 1280px only from `_mixins.scss`).
@@ -81,6 +82,15 @@ Dependencies: features → shared, core. shared → core/models only. Features n
 - No `!important`, no inline styles. Prefer CSS-only solutions.
 - Shared UI classes (`.button`, `.notice`, `.card`) live only in `styles/_components.scss` (global). Never copy them into a component's SCSS; page-specific parts (e.g. `.card__head`) stay in the page.
 - Colors/fonts/spacing only from SCSS variables. BTU palette: orange #FF6B00, dark #2B2B2B, light gray cards, stamp colors (red, purple, navy, green, pink).
+
+## Frontend quality standards (mandatory for all new code)
+1. **Shared UI library:** reusable components and design tokens live in an Angular library (`client/projects/ui`), imported via a path alias. Any UI used twice goes there. Build it for future reuse (no BTU-specific logic, no HTTP).
+2. **Requests:** buttons are disabled while a request is pending; submits use `exhaustMap` (no duplicate requests); resend actions (e.g. OTP) have a cooldown (e.g. 60s); GET results are cached where safe (`shareReplay` or a service-level signal cache); `switchMap` for changing inputs.
+3. **Loading:** skeleton placeholders instead of plain "loading" text.
+4. **Accessibility:** semantic HTML, every input has a label, `aria-live="polite"` for status changes, visible focus, keyboard navigation, alt text for images, WCAG AA contrast.
+5. **Performance:** `ChangeDetectionStrategy.OnPush` everywhere, `@defer` for heavy parts, `NgOptimizedImage` for images, no impure pipes, `track` in every `@for`. Target Lighthouse Performance and Accessibility 90+.
+6. **Signals first:** state with `signal`/`computed`, `toSignal` for observables, `input()`/`output()`/`model()`; avoid manual `subscribe`.
+7. Existing pages will be updated in a separate "quality pass"; all new code follows these rules from now.
 
 ## System flow
 Google Sheets (BTU adds verified skills) → sync by Record ID → validate → find student/passport → generate PDF → SHA-256 → anchor on chain → mark version latest → write Q–T back to Sheet.
