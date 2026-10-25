@@ -19,7 +19,12 @@ export class AdminAuthService {
     return this.key();
   }
 
-  login(key: string): void {
+  // Copied keys often bring a space or a new line: trim here, the one place that stores the key
+  login(rawKey: string): void {
+    const key = rawKey.trim();
+    if (!key) {
+      return;
+    }
     this.keyRejected.set(false);
     this.key.set(key);
     this.saveKey(key);

@@ -1,14 +1,16 @@
 <h1>{{ 'admin.title' | t: language() }}</h1>
 
 <form class="card form" (submit)="submit($event)">
-  <label for="admin-key">{{ 'admin.login.keyLabel' | t: language() }}</label>
-  <input
-    id="admin-key"
-    class="form__input"
-    type="password"
-    autocomplete="off"
-    [formControl]="key"
-  />
+  <div class="field">
+    <label for="admin-key">{{ 'admin.login.keyLabel' | t: language() }}</label>
+    <input
+      id="admin-key"
+      class="field__input"
+      type="password"
+      autocomplete="off"
+      [formControl]="key"
+    />
+  </div>
   <button class="button" type="submit" [disabled]="key.invalid">
     {{ 'login.submit' | t: language() }}
   </button>

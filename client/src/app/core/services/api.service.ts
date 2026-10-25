@@ -3,7 +3,15 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, delay, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { API_ERROR_CODE, FALLBACK_PDF_FILE_NAME } from '../constants';
-import { AdminPassport, SyncLogItem, SyncStartResponse, SyncStatus } from '../models/admin.model';
+import {
+  AdminPassport,
+  AdminSkill,
+  CreateAwardRequest,
+  CreateAwardResponse,
+  SyncLogItem,
+  SyncStartResponse,
+  SyncStatus,
+} from '../models/admin.model';
 import { OtpRequestResponse, OtpVerifyResponse } from '../models/auth.model';
 import { Passport, PdfDownload } from '../models/passport.model';
 import { Version } from '../models/version.model';
@@ -151,6 +159,22 @@ export class ApiService {
       return this.mockAdmin.getSyncStatus();
     }
     return this.http.get<SyncStatus>(`${environment.apiUrl}/admin/sync/status`);
+  }
+
+  getAdminSkills(): Observable<AdminSkill[]> {
+    if (environment.useMockApi) {
+      return this.mockAdmin.getSkills();
+    }
+    return this.http
+      .get<{ skills: AdminSkill[] }>(`${environment.apiUrl}/admin/skills`)
+      .pipe(map((response) => response.skills));
+  }
+
+  createAdminAward(body: CreateAwardRequest): Observable<CreateAwardResponse> {
+    if (environment.useMockApi) {
+      return this.mockAdmin.createAward(body);
+    }
+    return this.http.post<CreateAwardResponse>(`${environment.apiUrl}/admin/awards`, body);
   }
 
   // Reads filename="BTU-AI-000125-v2.pdf" from the header

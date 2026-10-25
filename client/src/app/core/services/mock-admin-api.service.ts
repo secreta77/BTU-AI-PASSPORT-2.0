@@ -1,7 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, delay, of } from 'rxjs';
 import { API_ERROR_CODE, SYNC_LOG_LEVEL, VERSION_STATUS } from '../constants';
-import { AdminPassport, SyncLogItem, SyncStartResponse, SyncStatus } from '../models/admin.model';
+import {
+  AdminPassport,
+  AdminSkill,
+  CreateAwardRequest,
+  CreateAwardResponse,
+  SyncLogItem,
+  SyncStartResponse,
+  SyncStatus,
+} from '../models/admin.model';
 import { PdfDownload } from '../models/passport.model';
 import { Version } from '../models/version.model';
 import { AdminAuthService } from './admin-auth.service';
@@ -62,6 +70,32 @@ const MOCK_PASSPORTS: AdminPassport[] = [
   },
 ];
 
+const MOCK_SKILLS: AdminSkill[] = [
+  { skillId: 'SKL-001', name: 'AI Literacy', category: 'AI Skill', description: 'Fundamentals.' },
+  { skillId: 'SKL-002', name: 'Prompt Engineering', category: 'AI Skill', description: 'Prompts.' },
+  {
+    skillId: 'SKL-004',
+    name: 'Data Analysis with AI',
+    category: 'AI Applied Skill',
+    description: 'Data.',
+  },
+  {
+    skillId: 'SKL-007',
+    name: 'AI Product Design',
+    category: 'AI Applied Skill',
+    description: 'Design.',
+  },
+  {
+    skillId: 'SKL-012',
+    name: 'Machine Learning Ops',
+    category: 'AI Advanced Skill',
+    description: 'MLOps.',
+  },
+];
+
+// Pairs that already exist, so the mock can answer 409 (try BTU-T-0007 + AI Literacy)
+const MOCK_EXISTING_AWARDS = new Set(['BTU-T-0007|SKL-001']);
+
 const MOCK_VERSIONS: Version[] = [
   {
     version: 2,
@@ -80,8 +114,6 @@ const MOCK_VERSIONS: Version[] = [
     docHash: HASH_64,
   },
 ];
-
-const MOCK_SINGLE_VERSION: Version[] = [{ ...MOCK_VERSIONS[1], status: VERSION_STATUS.LATEST }];
 
 const MOCK_LOG: SyncLogItem[] = [
   {
@@ -122,24 +154,27 @@ export class MockAdminApiService {
   private syncStartedAt: string | null = null;
   private syncFinishedAt: string | null = null;
   private syncFinished = false;
+  private manualAwardCount = 0;
+
+  // Copies, so manual awards can change them while the mock sync "issues" new versions
+  private readonly passports: AdminPassport[] = MOCK_PASSPORTS.map((item) => ({ ...item }));
+  private readonly log: SyncLogItem[] = [...MOCK_LOG];
+  // Manual awards wait here until the mock sync finishes (like "pending" on the real server)
+  private pendingAwards: CreateAwardResponse[] = [];
 
   getPassports(): Observable<AdminPassport[]> {
-    return this.answer(() => MOCK_PASSPORTS);
+    return this.answer(() => this.passports.map((item) => ({ ...item })));
   }
 
   getVersions(passportId: string): Observable<Version[]> {
-    const passport = MOCK_PASSPORTS.find((item) => item.passportId === passportId);
+    const passport = this.passports.find((item) => item.passportId === passportId);
     if (!this.hasValidKey()) {
       return this.rejectKey();
     }
     if (!passport) {
       return mockHttpError(404, API_ERROR_CODE.PASSPORT_NOT_FOUND, 'Passport not found');
     }
-    if (passport.latestVersion === null) {
-      return of([]).pipe(delay(MOCK_DELAY_MS));
-    }
-    const versions = passport.latestVersion === 2 ? MOCK_VERSIONS : MOCK_SINGLE_VERSION;
-    return of(versions).pipe(delay(MOCK_DELAY_MS));
+    return of(this.buildVersions(passport)).pipe(delay(MOCK_DELAY_MS));
   }
 
   getPdf(fallbackFileName: string): Observable<PdfDownload> {
@@ -150,7 +185,7 @@ export class MockAdminApiService {
   }
 
   getSyncLog(): Observable<SyncLogItem[]> {
-    return this.answer(() => MOCK_LOG);
+    return this.answer(() => [...this.log]);
   }
 
   startSync(): Observable<SyncStartResponse> {
@@ -160,13 +195,117 @@ export class MockAdminApiService {
     if (this.syncRunning) {
       return mockHttpError(409, API_ERROR_CODE.SYNC_ALREADY_RUNNING, 'Sync is already running');
     }
+    const startedAt = this.beginSync();
+    return of({ status: 'started' as const, startedAt }).pipe(delay(MOCK_DELAY_MS));
+  }
+
+  getSkills(): Observable<AdminSkill[]> {
+    return this.answer(() => MOCK_SKILLS);
+  }
+
+  // Same checks and answers as the real server (docs/api.md)
+  createAward(body: CreateAwardRequest): Observable<CreateAwardResponse> {
+    if (!this.hasValidKey()) {
+      return this.rejectKey();
+    }
+    if (!this.passports.some((item) => item.studentId === body.studentId)) {
+      return mockHttpError(404, API_ERROR_CODE.STUDENT_NOT_FOUND, 'Student not found');
+    }
+    if (!MOCK_SKILLS.some((item) => item.skillId === body.skillId)) {
+      return mockHttpError(404, API_ERROR_CODE.SKILL_NOT_FOUND, 'Skill not found');
+    }
+    const pair = `${body.studentId}|${body.skillId}`;
+    if (MOCK_EXISTING_AWARDS.has(pair)) {
+      return mockHttpError(409, API_ERROR_CODE.AWARD_ALREADY_EXISTS, 'Award already exists');
+    }
+    MOCK_EXISTING_AWARDS.add(pair);
+    this.manualAwardCount++;
+
+    const syncStarted = !this.syncRunning;
+    if (syncStarted) {
+      this.beginSync();
+    }
+    const response: CreateAwardResponse = {
+      recordId: `MAN-${String(this.manualAwardCount).padStart(4, '0')}`,
+      ...body,
+      earnedThrough: body.earnedThrough || null,
+      source: 'manual',
+      status: 'pending',
+      syncStarted,
+    };
+    this.pendingAwards.push(response);
+    return of(response).pipe(delay(MOCK_DELAY_MS));
+  }
+
+  // What the real sync does: one new version per student, however many skills are pending
+  private issuePendingAwards(issuedAt: string): void {
+    for (const award of this.pendingAwards) {
+      this.addLog(
+        SYNC_LOG_LEVEL.INFO,
+        issuedAt,
+        award.studentId,
+        award.recordId,
+        `Record ${award.recordId}: skill ${award.skillId} added to ${award.studentId}`,
+      );
+    }
+    const studentIds = new Set(this.pendingAwards.map((award) => award.studentId));
+    for (const studentId of studentIds) {
+      const passport = this.passports.find((item) => item.studentId === studentId);
+      if (!passport) {
+        continue;
+      }
+      const newSkills = this.pendingAwards.filter((award) => award.studentId === studentId);
+      passport.latestVersion = (passport.latestVersion ?? 0) + 1;
+      passport.skillCount += newSkills.length;
+      passport.lastIssuedAt = issuedAt;
+      this.addLog(
+        SYNC_LOG_LEVEL.INFO,
+        issuedAt,
+        studentId,
+        null,
+        `Issued version ${passport.latestVersion} for ${studentId}`,
+      );
+    }
+    this.pendingAwards = [];
+  }
+
+  private addLog(
+    level: SyncLogItem['level'],
+    createdAt: string,
+    studentId: string,
+    recordId: string | null,
+    message: string,
+  ): void {
+    const id = Math.max(0, ...this.log.map((item) => item.id)) + 1;
+    this.log.unshift({ id, sheetRow: null, recordId, studentId, level, message, createdAt });
+  }
+
+  // Versions 1..latest, newest first. V1 and V2 reuse the fixed mock data.
+  private buildVersions(passport: AdminPassport): Version[] {
+    const latest = passport.latestVersion ?? 0;
+    const versions: Version[] = [];
+    for (let number = latest; number >= 1; number--) {
+      const fixed = MOCK_VERSIONS.find((item) => item.version === number);
+      versions.push({
+        ...(fixed ?? {
+          version: number,
+          verificationCode: `BTU-V-MOCK-${String(number).padStart(4, '0')}`,
+          issuedAt: passport.lastIssuedAt ?? '',
+          txHash: `0x${String(number).repeat(64).slice(0, 64)}`,
+          docHash: HASH_64,
+        }),
+        status: number === latest ? VERSION_STATUS.LATEST : VERSION_STATUS.SUPERSEDED,
+      });
+    }
+    return versions;
+  }
+
+  private beginSync(): string {
     this.syncRunning = true;
     this.syncPolls = 0;
     this.syncFinished = false;
     this.syncStartedAt = new Date().toISOString();
-    return of({ status: 'started' as const, startedAt: this.syncStartedAt }).pipe(
-      delay(MOCK_DELAY_MS),
-    );
+    return this.syncStartedAt;
   }
 
   // Counts the calls: "running" for the first polls, then finished with a summary
@@ -178,6 +317,7 @@ export class MockAdminApiService {
           this.syncRunning = false;
           this.syncFinished = true;
           this.syncFinishedAt = new Date().toISOString();
+          this.issuePendingAwards(this.syncFinishedAt);
         }
       }
       return {

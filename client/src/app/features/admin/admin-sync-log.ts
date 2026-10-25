@@ -47,7 +47,12 @@ export class AdminSyncLog {
     { initialValue: LOADING },
   );
   protected readonly state = computed(() => this.result().state);
-  protected readonly items = computed(() => this.result().items);
+  // Newest first by time (same time: higher id first), whatever order the API sends
+  protected readonly items = computed(() =>
+    [...this.result().items].sort(
+      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id - a.id,
+    ),
+  );
 
   protected readonly skeletonItems = [1, 2, 3];
   protected readonly levels = SYNC_LOG_LEVEL;
