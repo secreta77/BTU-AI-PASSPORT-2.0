@@ -2,6 +2,8 @@
 // checking the .env settings, hiding secrets in the output, running one check with a time limit, printing results.
 // A secret value must NEVER appear in the output: the checks name a setting, they do not show it.
 
+import { missingCredentialsMessage, resolveCredentialsPath } from '../../sheets/credentialsPath.js';
+
 export const STATUS = { OK: 'ok', WARN: 'warn', FAIL: 'fail' };
 
 const ICON = { ok: '✅', warn: '⚠️ ', fail: '❌' };
@@ -107,6 +109,19 @@ export function checkEnvironment(config) {
     results.push(warn('SMTP_*', 'SMTP_HOST is set but SMTP_USER or SMTP_PASS is empty'));
   }
   return results;
+}
+
+// Does the Google key file exist where the server will look for it? A path that points nowhere (for example the local
+// path on Render, where a Secret File is in /etc/secrets) is the usual reason for a failed sync. Shows paths only.
+// `exists` is passed in by the tests.
+export function checkCredentialsFile(configuredPath, options, exists) {
+  const { path: found, tried } = resolveCredentialsPath(configuredPath, options, exists);
+  if (found === null) {
+    return fail('Google key file', missingCredentialsMessage(tried));
+  }
+  return found === tried[0]
+    ? ok('Google key file', `found at ${found}`)
+    : ok('Google key file', `found at ${found} (the configured path ${tried[0]} does not exist, the server uses this one)`);
 }
 
 function checkBrevoSettings({ from }) {

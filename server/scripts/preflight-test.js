@@ -1,9 +1,15 @@
 // Dev helper: tests the offline parts of `npm run preflight` (settings check, hiding secrets, time limit, exit code).
 // Run: npm run preflight-test. The live checks themselves are tested by running `npm run preflight`.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
-  checkEnvironment, exitCodeFor, formatResult, judgeBrevoSenders, looksLikeApiKeyUrl, redact, runCheck, sensitiveValues, STATUS, summarize,
+  checkCredentialsFile, checkEnvironment, exitCodeFor, formatResult, judgeBrevoSenders, looksLikeApiKeyUrl, redact, runCheck, sensitiveValues, STATUS, summarize,
 } from './helpers/preflightCore.js';
+import { credentialsCandidates, missingCredentialsMessage, resolveCredentialsPath } from '../sheets/credentialsPath.js';
+
+const serverDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // Secrets that are easy to find in an output
 const SECRETS = {
@@ -240,6 +246,58 @@ await scenario('output lines and exit code: any ❌ makes the exit code 1, ⚠�
   assert.equal(exitCodeFor(results), 0);
   assert.equal(exitCodeFor([...results, { status: 'fail' }]), 1);
   assert.equal(exitCodeFor([]), 0);
+});
+
+await scenario('Google key file: candidates are the configured path, then the same name in /etc/secrets and the working folder, without repeats', () => {
+  const where = { serverDir: '/opt/render/project/src/server', workingDir: '/opt/render/project/src' };
+  assert.deepEqual(credentialsCandidates('./credentials/google-service-account.json', where), [
+    '/opt/render/project/src/server/credentials/google-service-account.json',
+    '/etc/secrets/google-service-account.json',
+    '/opt/render/project/src/google-service-account.json',
+  ]);
+  // an absolute path stays as it is (Render: GOOGLE_CREDENTIALS_PATH=/etc/secrets/...), and the same place is not listed twice
+  assert.deepEqual(credentialsCandidates('/etc/secrets/google-service-account.json', where), [
+    '/etc/secrets/google-service-account.json',
+    '/opt/render/project/src/google-service-account.json',
+  ]);
+  assert.equal(credentialsCandidates('/etc/secrets/a.json', { serverDir: '/s', workingDir: '/etc/secrets' }).length, 1);
+});
+
+await scenario('Google key file: the first existing candidate wins; none gives path null and the list that was tried', () => {
+  const where = { serverDir: '/opt/render/project/src/server', workingDir: '/opt/render/project/src' };
+  const only = (...files) => (file) => files.includes(file);
+  const local = resolveCredentialsPath('./credentials/google-service-account.json', where, only('/opt/render/project/src/server/credentials/google-service-account.json', '/etc/secrets/google-service-account.json'));
+  assert.equal(local.path, '/opt/render/project/src/server/credentials/google-service-account.json');
+  const render = resolveCredentialsPath('./credentials/google-service-account.json', where, only('/etc/secrets/google-service-account.json'));
+  assert.equal(render.path, '/etc/secrets/google-service-account.json');
+  const none = resolveCredentialsPath('./credentials/google-service-account.json', where, only());
+  assert.equal(none.path, null);
+  assert.equal(none.tried.length, 3);
+  const message = missingCredentialsMessage(none.tried);
+  assert(message.includes('/etc/secrets/google-service-account.json') && message.includes('Secret File'), message);
+});
+
+await scenario('preflight key-file check: ✅ at the configured path, ✅ with a note when only /etc/secrets has it, ❌ with the tried paths when missing', () => {
+  const where = { serverDir: '/opt/render/project/src/server', workingDir: '/opt/render/project/src' };
+  const only = (...files) => (file) => files.includes(file);
+  const at = checkCredentialsFile('./credentials/key.json', where, only('/opt/render/project/src/server/credentials/key.json'));
+  assert.equal(at.status, STATUS.OK);
+  const fallback = checkCredentialsFile('./credentials/key.json', where, only('/etc/secrets/key.json'));
+  assert.equal(fallback.status, STATUS.OK);
+  assert.match(fallback.detail, /does not exist, the server uses this one/);
+  const missing = checkCredentialsFile('./credentials/key.json', where, only());
+  assert.equal(missing.status, STATUS.FAIL);
+  assert.equal(missing.label, 'Google key file');
+  assert.match(missing.detail, /\/etc\/secrets\/key\.json/);
+});
+
+await scenario('config: GOOGLE_CREDENTIALS_PATH wins, GOOGLE_APPLICATION_CREDENTIALS is the alias, the local path is the default', () => {
+  // A child process, because config.js reads the environment once. An empty value stops dotenv from filling it in from .env.
+  const read = (env) => execFileSync(process.execPath, ['--input-type=module', '-e',
+    "import { config } from './config.js'; console.log(config.google.credentialsPath);"], { cwd: serverDir, env: { ...process.env, ...env }, encoding: 'utf8' }).trim();
+  assert.equal(read({ GOOGLE_CREDENTIALS_PATH: '', GOOGLE_APPLICATION_CREDENTIALS: '' }), './credentials/google-service-account.json');
+  assert.equal(read({ GOOGLE_CREDENTIALS_PATH: '', GOOGLE_APPLICATION_CREDENTIALS: '/etc/secrets/alias.json' }), '/etc/secrets/alias.json');
+  assert.equal(read({ GOOGLE_CREDENTIALS_PATH: '/etc/secrets/main.json', GOOGLE_APPLICATION_CREDENTIALS: '/etc/secrets/alias.json' }), '/etc/secrets/main.json');
 });
 
 console.log(failed ? '\nSome scenarios FAILED.' : `\nAll ${step} scenarios passed.`);
