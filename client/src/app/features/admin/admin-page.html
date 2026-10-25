@@ -1,0 +1,15 @@
+@if (adminAuth.isLoggedIn()) {
+  <header class="head">
+    <h1>{{ 'admin.title' | t: language() }}</h1>
+    <button class="button" type="button" (click)="logout()">
+      {{ 'header.logout' | t: language() }}
+    </button>
+  </header>
+  <p class="muted">{{ 'admin.subtitle' | t: language() }}</p>
+
+  <app-admin-sync-panel />
+  <app-admin-passports />
+  <app-admin-sync-log />
+} @else {
+  <app-admin-login />
+}

@@ -1,0 +1,38 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: $content-max-width;
+  margin: 0 auto;
+  padding: $space-lg $space-md;
+
+  @include up(md) {
+    padding: $space-xl $space-lg;
+  }
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-sm;
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.muted {
+  color: $color-text-muted;
+}
+
+// Space between the blocks of the dashboard
+app-admin-sync-panel,
+app-admin-passports,
+app-admin-sync-log {
+  display: block;
+  margin-top: $space-xl;
+}

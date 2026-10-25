@@ -1,0 +1,47 @@
+@use 'variables' as *;
+
+.muted {
+  color: $color-text-muted;
+}
+
+.retry {
+  margin-top: $space-sm;
+}
+
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: $space-xs;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__item {
+    padding: $space-sm $space-md;
+    border: 1px solid $color-border;
+    border-left-width: 0.25rem;
+    border-radius: $radius-md;
+
+    &--error {
+      border-color: $color-error;
+      background: $color-error-bg;
+      color: $color-error;
+    }
+
+    &--duplicate {
+      border-color: $color-warning;
+      background: $color-warning-bg;
+      color: $color-warning;
+    }
+  }
+
+  &__meta {
+    margin: 0 0 $space-xxs;
+    font-size: $font-size-small;
+  }
+
+  &__message {
+    margin: 0;
+    word-break: break-word;
+  }
+}

@@ -1,0 +1,28 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $space-sm;
+  margin: $space-md 0 0;
+
+  @include up(md) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  &__item {
+    min-width: 0;
+
+    dt {
+      color: $color-text-muted;
+      font-size: $font-size-small;
+    }
+
+    dd {
+      margin: 0;
+      font-size: $font-size-large;
+      font-weight: 600;
+    }
+  }
+}

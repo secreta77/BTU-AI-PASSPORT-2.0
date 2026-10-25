@@ -1,13 +1,16 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, delay, map, of, throwError } from 'rxjs';
+import { Observable, delay, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { API_ERROR_CODE, FALLBACK_PDF_FILE_NAME } from '../constants';
-import { ApiErrorBody } from '../models/api-error.model';
+import { AdminPassport, SyncLogItem, SyncStartResponse, SyncStatus } from '../models/admin.model';
 import { OtpRequestResponse, OtpVerifyResponse } from '../models/auth.model';
 import { Passport, PdfDownload } from '../models/passport.model';
+import { Version } from '../models/version.model';
 import { VerifyInfo } from '../models/verify.model';
 import { AuthService } from './auth.service';
+import { MockAdminApiService } from './mock-admin-api.service';
+import { MOCK_DELAY_MS, mockHttpError } from './mock-http-error';
 import { MOCK_VERIFY_INFO } from './mock-verify.data';
 import {
   MOCK_EMAIL_LOCKED,
@@ -18,14 +21,12 @@ import {
   MOCK_TOKEN_PREFIX,
 } from './mock-student.data';
 
-// Long enough to see the loading skeletons in the browser (mock mode is for dev only)
-const MOCK_DELAY_MS = 800;
-
 // The only place that knows API URLs. Other methods are added together with their feature.
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
+  private readonly mockAdmin = inject(MockAdminApiService);
 
   getVerifyInfo(code: string): Observable<VerifyInfo> {
     if (environment.useMockApi) {
@@ -83,6 +84,75 @@ export class ApiService {
       );
   }
 
+  // --- Admin (the X-Admin-Key header is added by adminInterceptor) ---
+
+  getAdminPassports(): Observable<AdminPassport[]> {
+    if (environment.useMockApi) {
+      return this.mockAdmin.getPassports();
+    }
+    return this.http
+      .get<{ items: AdminPassport[] }>(`${environment.apiUrl}/admin/passports`)
+      .pipe(map((response) => response.items));
+  }
+
+  getAdminVersions(passportId: string): Observable<Version[]> {
+    if (environment.useMockApi) {
+      return this.mockAdmin.getVersions(passportId);
+    }
+    return this.http
+      .get<{ versions: Version[] }>(
+        `${environment.apiUrl}/admin/passports/${encodeURIComponent(passportId)}/versions`,
+      )
+      .pipe(map((response) => response.versions));
+  }
+
+  downloadAdminVersionPdf(
+    passportId: string,
+    version: number,
+    fallbackFileName: string,
+  ): Observable<PdfDownload> {
+    if (environment.useMockApi) {
+      return this.mockAdmin.getPdf(fallbackFileName);
+    }
+    return this.http
+      .get(
+        `${environment.apiUrl}/admin/passports/${encodeURIComponent(passportId)}/versions/${version}/pdf`,
+        { observe: 'response', responseType: 'blob' },
+      )
+      .pipe(
+        map((response) => ({
+          blob: response.body as Blob,
+          fileName: this.readFileName(
+            response.headers.get('Content-Disposition'),
+            fallbackFileName,
+          ),
+        })),
+      );
+  }
+
+  getAdminSyncLog(): Observable<SyncLogItem[]> {
+    if (environment.useMockApi) {
+      return this.mockAdmin.getSyncLog();
+    }
+    return this.http
+      .get<{ items: SyncLogItem[] }>(`${environment.apiUrl}/admin/sync-log`)
+      .pipe(map((response) => response.items));
+  }
+
+  startAdminSync(): Observable<SyncStartResponse> {
+    if (environment.useMockApi) {
+      return this.mockAdmin.startSync();
+    }
+    return this.http.post<SyncStartResponse>(`${environment.apiUrl}/admin/sync`, {});
+  }
+
+  getAdminSyncStatus(): Observable<SyncStatus> {
+    if (environment.useMockApi) {
+      return this.mockAdmin.getSyncStatus();
+    }
+    return this.http.get<SyncStatus>(`${environment.apiUrl}/admin/sync/status`);
+  }
+
   // Reads filename="BTU-AI-000125-v2.pdf" from the header
   private readFileName(contentDisposition: string | null, fallbackFileName: string): string {
     const match = contentDisposition?.match(/filename="?([^";]+)"?/i);
@@ -130,9 +200,6 @@ export class ApiService {
   }
 
   private mockError(status: number, code: string, message: string): Observable<never> {
-    const body: ApiErrorBody = { error: { code, message } };
-    return throwError(() => new HttpErrorResponse({ status, error: body })).pipe(
-      delay(MOCK_DELAY_MS),
-    );
+    return mockHttpError(status, code, message);
   }
 }

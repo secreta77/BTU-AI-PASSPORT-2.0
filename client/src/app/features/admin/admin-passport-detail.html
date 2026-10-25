@@ -1,0 +1,85 @@
+<a class="back" routerLink="/admin">{{ 'admin.versions.back' | t: language() }}</a>
+
+<h1>{{ 'admin.versions.title' | t: language() }}</h1>
+<p class="passport-id">{{ id() }}</p>
+
+<!-- The live region always exists, so the screen reader announces the text when it appears -->
+<div aria-live="polite">
+  @if (state() === 'loading') {
+    <span class="sr-only">{{ 'admin.loading' | t: language() }}</span>
+  }
+</div>
+
+@switch (state()) {
+  @case ('loading') {
+    <ul class="versions" aria-hidden="true">
+      @for (item of skeletonItems; track item) {
+        <li class="card card--skeleton">
+          <ui-skeleton variant="title" />
+          <ui-skeleton variant="line" />
+          <ui-skeleton variant="line-short" />
+        </li>
+      }
+    </ul>
+  }
+  @case ('error') {
+    <p class="notice notice--error" aria-live="polite">{{ errorKey() | t: language() }}</p>
+  }
+  @case ('ready') {
+    @if (versions().length === 0) {
+      <p class="muted">{{ 'admin.versions.empty' | t: language() }}</p>
+    } @else {
+      <ul class="versions">
+        @for (version of versions(); track version.version) {
+          <li class="card">
+            <div class="version__head">
+              <h2 class="version__title">v{{ version.version }}</h2>
+              <ui-status-badge
+                [variant]="badgeVariant(version)"
+                [label]="badgeLabelKey(version) | t: language()"
+              />
+            </div>
+
+            <dl class="facts">
+              <div class="facts__row">
+                <dt>{{ 'admin.versions.code' | t: language() }}</dt>
+                <dd class="facts__value--break">{{ version.verificationCode }}</dd>
+              </div>
+              <div class="facts__row">
+                <dt>{{ 'verify.issuedAt' | t: language() }}</dt>
+                <dd>{{ version.issuedAt | date: 'dd.MM.yyyy HH:mm' : 'UTC' }}</dd>
+              </div>
+              <div class="facts__row">
+                <dt>{{ 'verify.transaction' | t: language() }}</dt>
+                <dd class="facts__value--break">
+                  <a [href]="txUrl(version)" target="_blank" rel="noopener noreferrer">
+                    {{ 'verify.viewOnEtherscan' | t: language() }}
+                  </a>
+                </dd>
+              </div>
+            </dl>
+
+            <button
+              class="button"
+              type="button"
+              [disabled]="downloadingVersion() !== null"
+              (click)="downloadPdf(version)"
+            >
+              {{
+                (downloadingVersion() === version.version
+                  ? 'admin.versions.downloading'
+                  : 'admin.versions.download'
+                ) | t: language()
+              }}
+            </button>
+          </li>
+        }
+      </ul>
+      <div aria-live="polite">
+        @if (downloadFailed()) {
+          <p class="notice notice--error">{{ 'admin.versions.downloadError' | t: language() }}</p>
+        }
+      </div>
+    }
+  }
+}
