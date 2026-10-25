@@ -22,8 +22,9 @@ export const en: Translations = {
   'verify.submit': 'Verify',
   'verify.loading': 'Verifying…',
   'verify.sticker.alt': 'Verified on blockchain',
-  'verify.found.title': 'Record found',
-  'verify.found.hint': 'The code is in the BTU registry.',
+  'verify.found.title': 'The code is valid',
+  'verify.found.warning':
+    'The QR code and verification code confirm that this passport was issued, but they cannot check the file itself. To verify the document, upload the PDF below.',
   'verify.passportId': 'Passport ID',
   'verify.version': 'Version',
   'verify.status': 'Status',

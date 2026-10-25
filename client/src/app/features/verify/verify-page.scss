@@ -115,6 +115,14 @@
   }
 }
 
+// The file check is the main step while the file is not chosen yet
+.block--action {
+  padding: $space-md;
+  background: $color-white;
+  border: 2px solid $color-primary;
+  border-radius: $radius-md;
+}
+
 .checks {
   display: flex;
   flex-direction: column;
