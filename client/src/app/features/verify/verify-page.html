@@ -13,7 +13,9 @@
       [formControl]="codeControl"
       [placeholder]="'verify.codePlaceholder' | t"
     />
-    <button class="button" type="submit">{{ 'verify.submit' | t }}</button>
+    <button class="button" type="submit" [disabled]="state() === 'loading'">
+      {{ 'verify.submit' | t }}
+    </button>
   </div>
 </form>
 
@@ -22,19 +24,18 @@
     <p class="muted">{{ 'verify.enterCode' | t }}</p>
   }
   @case ('loading') {
-    <p class="muted" role="status">{{ 'verify.loading' | t }}</p>
+    <p class="muted" aria-live="polite">{{ 'verify.loading' | t }}</p>
   }
   @case ('found') {
     @if (info(); as record) {
       <section class="card" aria-labelledby="result-title">
         <div class="card__head">
-          <h2 id="result-title">{{ 'verify.found.title' | t }}</h2>
+          <h2 #resultTitle id="result-title" tabindex="-1">{{ 'verify.found.title' | t }}</h2>
           @if (isLatest()) {
-            <!-- Decorative sticker; the status text is in the badge -->
             <img
               class="card__sticker"
               src="assets/stickers/blockchain-verified.png"
-              alt=""
+              [alt]="'verify.sticker.alt' | t"
               width="1051"
               height="429"
             />
@@ -82,10 +83,12 @@
             <p class="muted">{{ 'verify.chain.hint' | t }}</p>
             @switch (chainState()) {
               @case ('checking') {
-                <p class="muted" role="status">{{ 'verify.chain.checking' | t }}</p>
+                <p class="muted" aria-live="polite">{{ 'verify.chain.checking' | t }}</p>
               }
               @case ('failed') {
-                <p class="notice notice--error" role="alert">{{ 'verify.chain.failed' | t }}</p>
+                <p class="notice notice--error" aria-live="polite">
+                  {{ 'verify.chain.failed' | t }}
+                </p>
                 <button class="button" type="button" (click)="retryChain()">
                   {{ 'verify.chain.retry' | t }}
                 </button>
@@ -93,17 +96,22 @@
               @case ('done') {
                 @if (chain(); as check) {
                   @if (check.recordExists) {
-                    <ul class="checks">
+                    <ul class="checks" aria-live="polite">
                       <li [class]="check.issuerMatches ? 'check check--ok' : 'check check--bad'">
                         <span aria-hidden="true">{{ check.issuerMatches ? '✅' : '❌' }}</span>
-                        {{ (check.issuerMatches ? 'verify.chain.issuerOk' : 'verify.chain.issuerBad') | t }}
+                        {{
+                          (check.issuerMatches ? 'verify.chain.issuerOk' : 'verify.chain.issuerBad')
+                            | t
+                        }}
                       </li>
                       <li
                         [class]="
                           check.versionMatchesDatabase ? 'check check--ok' : 'check check--bad'
                         "
                       >
-                        <span aria-hidden="true">{{ check.versionMatchesDatabase ? '✅' : '❌' }}</span>
+                        <span aria-hidden="true">{{
+                          check.versionMatchesDatabase ? '✅' : '❌'
+                        }}</span>
                         @if (check.versionMatchesDatabase) {
                           {{ 'verify.chain.versionOk' | t: { n: check.version } }}
                         } @else {
@@ -112,7 +120,7 @@
                       </li>
                     </ul>
                   } @else {
-                    <p class="notice notice--error" role="alert">
+                    <p class="notice notice--error" aria-live="polite">
                       <span aria-hidden="true">❌</span> {{ 'verify.chain.notOnChain' | t }}
                     </p>
                   }
@@ -132,29 +140,38 @@
                 <app-file-drop (fileChosen)="checkFile($event)" />
               }
               @case ('notPdf') {
-                <p class="notice notice--error" role="alert">{{ 'verify.file.onlyPdf' | t }}</p>
+                <p class="notice notice--error" aria-live="polite">
+                  {{ 'verify.file.onlyPdf' | t }}
+                </p>
                 <app-file-drop (fileChosen)="checkFile($event)" />
               }
               @case ('hashing') {
-                <p class="muted" role="status">{{ 'verify.file.hashing' | t }}</p>
+                <p class="muted" aria-live="polite">{{ 'verify.file.hashing' | t }}</p>
               }
               @case ('done') {
                 @switch (fileResult()) {
                   @case (VERIFY_RESULT.AUTHENTIC_LATEST) {
-                    <p class="notice notice--success" role="status">
-                      <strong><span aria-hidden="true">✅</span> {{ 'verify.file.authentic' | t }}</strong><br />
+                    <p class="notice notice--success">
+                      <strong aria-live="polite"
+                        ><span aria-hidden="true">✅</span>
+                        {{ 'verify.file.authentic' | t }}</strong
+                      ><br />
                       {{ 'verify.file.authenticText' | t }}
                     </p>
                   }
                   @case (VERIFY_RESULT.AUTHENTIC_OUTDATED) {
-                    <p class="notice notice--warning" role="status">
-                      <strong><span aria-hidden="true">🟡</span> {{ 'verify.file.outdated' | t }}</strong><br />
+                    <p class="notice notice--warning">
+                      <strong aria-live="polite"
+                        ><span aria-hidden="true">🟡</span> {{ 'verify.file.outdated' | t }}</strong
+                      ><br />
                       {{ 'verify.file.outdatedText' | t: { n: fileComparedLatestVersion() } }}
                     </p>
                   }
                   @default {
-                    <p class="notice notice--error" role="alert">
-                      <strong><span aria-hidden="true">❌</span> {{ 'verify.file.modified' | t }}</strong><br />
+                    <p class="notice notice--error">
+                      <strong aria-live="polite"
+                        ><span aria-hidden="true">❌</span> {{ 'verify.file.modified' | t }}</strong
+                      ><br />
                       {{ 'verify.file.modifiedText' | t }}
                     </p>
                   }
@@ -171,13 +188,15 @@
   }
   @case ('notFound') {
     <section class="card card--error" aria-labelledby="result-title">
-      <h2 id="result-title"><span aria-hidden="true">❓</span> {{ 'verify.notFound.title' | t }}</h2>
+      <h2 #resultTitle id="result-title" tabindex="-1">
+        <span aria-hidden="true">❓</span> {{ 'verify.notFound.title' | t }}
+      </h2>
       <p>{{ 'verify.notFound.text' | t }}</p>
     </section>
   }
   @case ('error') {
-    <section class="card card--error" role="alert" aria-labelledby="result-title">
-      <h2 id="result-title">{{ 'verify.error.title' | t }}</h2>
+    <section class="card card--error" aria-labelledby="result-title">
+      <h2 #resultTitle id="result-title" tabindex="-1">{{ 'verify.error.title' | t }}</h2>
       <p>{{ 'verify.error.text' | t }}</p>
       <button class="button" type="button" (click)="retry()">{{ 'verify.retry' | t }}</button>
     </section>

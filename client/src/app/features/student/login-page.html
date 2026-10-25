@@ -10,38 +10,58 @@
       class="form__input"
       type="email"
       autocomplete="email"
+      [attr.aria-invalid]="errorKey() ? 'true' : null"
+      [attr.aria-describedby]="errorKey() ? 'login-error' : null"
       [formControl]="emailControl"
       [placeholder]="'login.email.placeholder' | t"
     />
-    @if (errorKey(); as key) {
-      <p class="notice notice--error" role="alert">{{ key | t }}</p>
-    }
+    <!-- Always in the page, so screen readers announce a message when it appears -->
+    <div class="form__status" id="login-error" aria-live="polite">
+      @if (errorKey(); as key) {
+        <p class="notice notice--error">{{ key | t }}</p>
+      }
+    </div>
     <button class="button" type="submit" [disabled]="busy()">
       {{ (busy() ? 'login.sending' : 'login.sendCode') | t }}
     </button>
   </form>
 } @else {
-  <p class="notice notice--success" role="status">{{ 'login.codeSent' | t }}</p>
+  <div aria-live="polite">
+    <p class="notice notice--success">{{ codeSentKey() | t }}</p>
+  </div>
 
   <form class="form" (submit)="login($event)">
     <label class="form__label" for="login-code">{{ 'login.code.label' | t }}</label>
     <!-- type="text" + inputmode: type="number" would drop leading zeros -->
     <input
+      #codeInput
       id="login-code"
       class="form__input form__input--code"
       type="text"
       inputmode="numeric"
       autocomplete="one-time-code"
       maxlength="6"
+      [attr.aria-invalid]="errorKey() ? 'true' : null"
+      [attr.aria-describedby]="errorKey() ? 'login-error' : null"
       [formControl]="codeControl"
     />
-    @if (errorKey(); as key) {
-      <p class="notice notice--error" role="alert">{{ key | t }}</p>
-    }
+    <div class="form__status" id="login-error" aria-live="polite">
+      @if (errorKey(); as key) {
+        <p class="notice notice--error">{{ key | t }}</p>
+      }
+    </div>
     <button class="button" type="submit" [disabled]="busy()">
       {{ (busy() ? 'login.submitting' : 'login.submit') | t }}
     </button>
-    <button class="link-button" type="button" (click)="changeEmail()">
+    <button
+      class="link-button"
+      type="button"
+      [disabled]="busy() || resendSeconds() > 0"
+      (click)="resendCode()"
+    >
+      {{ (resendSeconds() > 0 ? 'login.resendIn' : 'login.resend') | t: { n: resendSeconds() } }}
+    </button>
+    <button class="link-button" type="button" [disabled]="busy()" (click)="changeEmail()">
       {{ 'login.changeEmail' | t }}
     </button>
   </form>

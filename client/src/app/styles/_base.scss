@@ -36,7 +36,7 @@ p {
 }
 
 a {
-  color: $color-primary;
+  color: $color-primary-text;
 }
 
 img,
@@ -45,6 +45,6 @@ svg {
 }
 
 :focus-visible {
-  outline: 2px solid $color-primary;
+  outline: 2px solid $color-primary-text;
   outline-offset: 2px;
 }

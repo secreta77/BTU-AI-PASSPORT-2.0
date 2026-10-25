@@ -41,15 +41,26 @@
   }
 }
 
+// The live region exists even without a message; cancel the extra flex gap it would add
+.form__status:empty {
+  margin-top: -$space-sm;
+}
+
 .link-button {
   align-self: flex-start;
   padding: 0;
   border: 0;
   background: none;
-  color: $color-primary;
+  color: $color-primary-text;
   font-size: $font-size-body;
   text-decoration: underline;
   cursor: pointer;
+
+  &:disabled {
+    color: $color-text-muted;
+    text-decoration: none;
+    cursor: default;
+  }
 }
 
 // The form already spaces its children with gap; the success notice sits above the form
