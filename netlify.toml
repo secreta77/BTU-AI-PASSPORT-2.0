@@ -21,13 +21,9 @@
   status = 200
 
 # Pages with personal data or no search value stay out of search results.
-# /verify (no code) is not listed, so it stays indexable.
+# /verify and /verify/* are NOT listed: a "/verify/*" rule would also match "/verify" and
+# block the public page. Code pages are protected by meta robots noindex (SeoService).
 # Header rules are matched before redirects, so they also apply to SPA-served paths.
-[[headers]]
-  for = "/verify/*"
-  [headers.values]
-    X-Robots-Tag = "noindex, nofollow"
-
 [[headers]]
   for = "/admin"
   [headers.values]
