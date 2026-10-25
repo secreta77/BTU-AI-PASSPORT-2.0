@@ -59,7 +59,9 @@
             />
           }
         </div>
-        <p class="muted">{{ 'verify.found.hint' | t: language() }}</p>
+        <p class="notice notice--warning">
+          <span aria-hidden="true">⚠️</span> {{ 'verify.found.warning' | t: language() }}
+        </p>
 
         <dl class="facts">
           <div class="facts__row">
@@ -158,7 +160,11 @@
         }
 
         @if (canCheckFile()) {
-          <section class="block" aria-labelledby="file-title">
+          <section
+            class="block"
+            [class.block--action]="fileState() === 'idle' || fileState() === 'notPdf'"
+            aria-labelledby="file-title"
+          >
             <h3 id="file-title">{{ 'verify.file.title' | t: language() }}</h3>
             <p class="muted">{{ 'verify.file.hint' | t: language() }}</p>
 

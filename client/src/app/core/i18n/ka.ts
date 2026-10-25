@@ -20,8 +20,9 @@ export const ka = {
   'verify.submit': 'გადამოწმება',
   'verify.loading': 'მიმდინარეობს გადამოწმება…',
   'verify.sticker.alt': 'დადასტურებულია ბლოკჩეინით',
-  'verify.found.title': 'ჩანაწერი მოიძებნა',
-  'verify.found.hint': 'კოდი BTU-ს რეესტრშია.',
+  'verify.found.title': 'კოდი ნამდვილია',
+  'verify.found.warning':
+    'QR და კოდი ადასტურებს, რომ პასპორტი გაცემულია, მაგრამ თავად ფაილს ვერ ამოწმებს. დოკუმენტის ნამდვილობისთვის ატვირთეთ PDF ქვემოთ.',
   'verify.passportId': 'პასპორტის ID',
   'verify.version': 'ვერსია',
   'verify.status': 'სტატუსი',
