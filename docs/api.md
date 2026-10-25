@@ -47,7 +47,7 @@ The page combines this answer with the contract read in the browser (see "Result
 ### POST /api/student/otp/request
 Body: `{ "email": "student@example.org" }`
 `200` `{ "ok": true }` — always, also for unknown emails (we do not reveal who is a student).
-In dev the mail goes to Ethereal and the preview URL is printed to the server console (Decision 7).
+In dev the mail goes to Ethereal and the preview URL is printed to the server console (Decision 7). With `BREVO_API_KEY` set, the mail is sent through the Brevo API instead.
 Errors: `400 INVALID_REQUEST`.
 
 ### POST /api/student/otp/verify

@@ -7,7 +7,7 @@ import { ethers } from 'ethers';
 import nodemailer from 'nodemailer';
 import { config } from '../config.js';
 import {
-  checkEnvironment, exitCodeFor, formatResult, ok, runCheck, sensitiveValues, STATUS, summarize, warn,
+  checkEnvironment, exitCodeFor, formatResult, judgeBrevoSenders, ok, runCheck, sensitiveValues, STATUS, summarize, warn,
 } from './helpers/preflightCore.js';
 
 const REQUIRED_TABLES = ['students', 'passports', 'skills', 'skill_awards', 'passport_versions', 'sync_log', 'otp_codes'];
@@ -15,6 +15,7 @@ const MIN_POSTGRES_VERSION_NUM = 150000; // schema.sql uses NULLS NOT DISTINCT
 const MIN_ISSUER_BALANCE_ETH = 0.02; // the bootstrap sends about 18 transactions
 const RPC_TIME_LIMIT_MS = 15_000;
 const SMTP_PORT = 587; // the same port the login mail uses
+const BREVO_SENDERS_URL = 'https://api.brevo.com/v3/senders';
 
 const secrets = sensitiveValues(config);
 const allResults = [];
@@ -191,6 +192,15 @@ await check('Contract', async () => {
 
 heading('Login mail');
 await check('Login mail', async () => {
+  if (config.mail.brevoApiKey !== '') {
+    // Reads the sender list: proves that the key works and that MAIL_FROM is a confirmed sender. Sends no mail.
+    const response = await fetch(BREVO_SENDERS_URL, {
+      headers: { 'api-key': config.mail.brevoApiKey, accept: 'application/json' },
+      signal: AbortSignal.timeout(RPC_TIME_LIMIT_MS),
+    });
+    const body = await response.json().catch(() => null);
+    return judgeBrevoSenders({ status: response.status, body }, config.mail.from);
+  }
   if (config.smtp.host === '') {
     await nodemailer.createTestAccount(); // proves that the test inbox (Ethereal) can be reached from here
     return 'test inbox (Ethereal) is reachable';

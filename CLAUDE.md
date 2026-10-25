@@ -166,7 +166,7 @@ Retry safety: if the chain step fails, the uploaded PDF stays in Storage (never 
 4. Blockchain reads: config with 2–3 public RPC URLs and fallback; the verify page shows an Etherscan tx link.
 5. `server/scripts/tamper-pdf.js` belongs to the Blockchain role.
 6. Admin API: protected by `ADMIN_API_KEY`. Student session: JWT in `Authorization` header, expires in 2 hours.
-7. OTP: valid 10 minutes, max 5 attempts. Test emails are on example.org and receive nothing, so in dev nodemailer uses an Ethereal test account and the preview URL is printed to the server console (empty `SMTP_*` = Ethereal).
+7. OTP: valid 10 minutes, max 5 attempts. Test emails are on example.org and receive nothing, so in dev nodemailer uses an Ethereal test account and the preview URL is printed to the server console (empty `SMTP_*` = Ethereal). Real mail: with `BREVO_API_KEY` + `MAIL_FROM` set, the code goes through the Brevo HTTPS API (hosts such as Render free block SMTP ports). Order of use: Brevo, SMTP, Ethereal.
 8. Excel reading uses `exceljs` (not `xlsx`, which is outdated with security issues).
 9. Never write package versions from memory. Install new packages with `npm install <name>` so npm picks the current version.
 10. Duplicates: sync filters by `student_id` + `skill_id` before INSERT. Errors and duplicates go to `sync_log` with `INSERT ... ON CONFLICT DO NOTHING` (unique index on `record_id, message` where level is not `info`), so each is logged once.
