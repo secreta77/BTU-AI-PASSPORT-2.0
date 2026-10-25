@@ -1,4 +1,5 @@
 // Same names and values as server/shared/constants.js. No magic strings in the app.
+import type { TranslationKey } from './i18n/ka';
 
 export const VERIFY_RESULT = {
   AUTHENTIC_LATEST: 'AUTHENTIC_LATEST',
@@ -61,3 +62,13 @@ export const STAMP_IMAGE_EXTENSION = '.png';
 
 // Used when the server sends no usable Content-Disposition header
 export const FALLBACK_PDF_FILE_NAME = 'BTU-AI-passport.pdf';
+
+// Wait time before a new login code can be requested
+export const RESEND_COOLDOWN_SECONDS = 60;
+
+// Skill category (as sent by the API) -> UI text. Single place for this mapping.
+export const SKILL_CATEGORY_KEY: Record<string, TranslationKey> = {
+  'AI Skill': 'skillCategory.skill',
+  'AI Applied Skill': 'skillCategory.applied',
+  'AI Advanced Skill': 'skillCategory.advanced',
+};

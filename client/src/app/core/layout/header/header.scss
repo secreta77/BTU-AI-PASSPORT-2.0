@@ -71,7 +71,13 @@
 .header__lang-button--active {
   border-color: $color-primary;
   background: $color-primary;
+  color: $color-on-primary;
   font-weight: 700;
+}
+
+// The header is dark: the darker orange outline would be hard to see on it
+.header :focus-visible {
+  outline-color: $color-primary;
 }
 
 @include up(md) {

@@ -1,11 +1,11 @@
-<h1>{{ 'myPassport.title' | t }}</h1>
+<h1 #pageTitle tabindex="-1">{{ 'myPassport.title' | t }}</h1>
 
 @switch (state()) {
   @case ('loading') {
-    <p class="muted" role="status">{{ 'myPassport.loading' | t }}</p>
+    <p class="muted" aria-live="polite">{{ 'myPassport.loading' | t }}</p>
   }
   @case ('error') {
-    <p class="notice notice--error" role="alert">{{ loadErrorKey() | t }}</p>
+    <p class="notice notice--error" aria-live="polite">{{ loadErrorKey() | t }}</p>
   }
   @case ('ready') {
     @if (passport(); as data) {
@@ -39,9 +39,11 @@
         <button class="button" type="button" [disabled]="downloading()" (click)="downloadPdf(data)">
           {{ (downloading() ? 'myPassport.downloading' : 'myPassport.download') | t }}
         </button>
-        @if (downloadFailed()) {
-          <p class="notice notice--error" role="alert">{{ 'myPassport.error.download' | t }}</p>
-        }
+        <div aria-live="polite">
+          @if (downloadFailed()) {
+            <p class="notice notice--error">{{ 'myPassport.error.download' | t }}</p>
+          }
+        </div>
       </section>
 
       <h2 class="skills-title">{{ 'myPassport.skills.title' | t }}</h2>
@@ -54,14 +56,19 @@
               <!-- Decorative: the category is written next to it -->
               <img class="skill__stamp" [src]="stampUrl(skill.stampCode)" alt="" />
               <div class="skill__body">
-                <h3 class="skill__name">{{ skill.skillName }}</h3>
+                <h3 class="skill__name" lang="en">{{ skill.skillName }}</h3>
                 <p class="skill__meta">
-                  {{ skill.skillCategory }} ·
+                  @if (categoryLabelKey(skill.skillCategory); as key) {
+                    {{ key | t }}
+                  } @else {
+                    <span lang="en">{{ skill.skillCategory }}</span>
+                  }
+                  ·
                   {{ 'myPassport.skills.earned' | t }}
                   <!-- Date only (YYYY-MM-DD): Angular reads it as local time, so no UTC here (it would show the day before) -->
                   {{ skill.dateEarned | date: 'dd.MM.yyyy' }}
                 </p>
-                <p class="skill__text">{{ skill.skillDescription }}</p>
+                <p class="skill__text" lang="en">{{ skill.skillDescription }}</p>
               </div>
             </li>
           }

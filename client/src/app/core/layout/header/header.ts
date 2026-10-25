@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { LANGUAGE } from '../../constants';
 import { LanguageService } from '../../i18n/language.service';
@@ -6,6 +6,7 @@ import { TranslatePipe } from '../../i18n/translate.pipe';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-header',
   imports: [RouterLink, TranslatePipe],
   templateUrl: './header.html',

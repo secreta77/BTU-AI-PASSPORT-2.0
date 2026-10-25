@@ -1,5 +1,16 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -40,6 +51,7 @@ export class VerifyPage {
   private readonly router = inject(Router);
   private readonly chainVerify = inject(ChainVerifyService);
   private readonly hashService = inject(HashService);
+  private readonly injector = inject(Injector);
 
   // Filled from the :code route parameter (withComponentInputBinding), undefined on /verify
   readonly code = input<string>();
@@ -56,6 +68,9 @@ export class VerifyPage {
   protected readonly fileState = signal<FileState>('idle');
   protected readonly fileResult = signal<VerifyResult | null>(null);
   protected readonly VERIFY_RESULT = VERIFY_RESULT;
+
+  // The result heading (found / not found / error): focused when an answer arrives
+  private readonly resultTitle = viewChild<ElementRef<HTMLElement>>('resultTitle');
 
   // Changes on every "try again" click so the same code is requested once more
   private readonly attempt = signal(0);
@@ -114,6 +129,7 @@ export class VerifyPage {
       .subscribe((result) => {
         this.state.set(result.state);
         this.info.set(result.info);
+        this.focusResultTitle(result.state);
         if (result.info && this.showChain) {
           void this.runChainCheck(result.info);
         }
@@ -184,6 +200,14 @@ export class VerifyPage {
         this.chainState.set('failed');
       }
     }
+  }
+
+  // Moves keyboard and screen reader focus to the answer; tabindex=-1 in the template makes the heading focusable
+  private focusResultTitle(state: PageState): void {
+    if (state === 'idle') {
+      return;
+    }
+    afterNextRender(() => this.resultTitle()?.nativeElement.focus(), { injector: this.injector });
   }
 
   private prepareRequest(code: string | undefined): void {
