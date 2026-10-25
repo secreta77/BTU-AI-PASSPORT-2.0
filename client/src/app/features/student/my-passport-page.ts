@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { Skeleton } from '@btu/ui';
 import { EMPTY, Observable, Subject, catchError, exhaustMap, finalize, map, of, tap } from 'rxjs';
 import {
   API_ERROR_CODE,
@@ -26,7 +27,6 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { getApiErrorCode } from '../../core/models/api-error.model';
 import { Passport } from '../../core/models/passport.model';
 import { ApiService } from '../../core/services/api.service';
-import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { FileDownloadService } from '../../core/services/file-download.service';
 
 type PageState = 'loading' | 'ready' | 'error';
