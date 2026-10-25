@@ -190,6 +190,65 @@ It is kept in server memory and is lost on restart (enough for the MVP).
 ```
 Before the first run: `startedAt`, `finishedAt` and `summary` are `null`. If the whole run crashed, `error` holds a short message.
 
+### POST /api/admin/awards
+**Status: the contract is fixed, the implementation follows.** Adds one skill to one student by hand, without the Google Sheet (source `manual`). The skill is saved as *pending* and goes into the student's next passport version (V2, V3, …) with the next sync.
+
+Body (JSON):
+```json
+{
+  "studentId": "BTU-T-0007",
+  "skillId": "SKL-004",
+  "dateEarned": "2026-10-24",
+  "earnedThrough": "BTU Classroom: Data Analysis course"
+}
+```
+- `studentId`: `BTU-T-####`, `skillId`: `SKL-###`.
+- `dateEarned`: `YYYY-MM-DD`, a real calendar date (the same check as for the Sheet).
+- `earnedThrough`: optional, text, trimmed, at most 120 characters. Missing, `null` or empty → stored as `null` (the PDF shows "—").
+
+`201`
+```json
+{
+  "recordId": "MAN-0001",
+  "studentId": "BTU-T-0007",
+  "skillId": "SKL-004",
+  "dateEarned": "2026-10-24",
+  "earnedThrough": "BTU Classroom: Data Analysis course",
+  "source": "manual",
+  "status": "pending",
+  "syncStarted": true
+}
+```
+- `recordId` is made by the server: `MAN-` + 4 digits, counting up. (Prefixes: `REC-` Sheet, `MAN-` manual, `CLS-` reserved for BTU Classroom.)
+- `status` is always `"pending"` here: saved, not yet in a passport version.
+- After saving, the server starts a sync (the same as `POST /api/admin/sync`). `syncStarted: true` → the page polls `GET /api/admin/sync/status` until `running` is `false`, then reloads the passport list. `syncStarted: false` → a sync was already running; the skill waits for the next one (press "Sync" again).
+- No idempotency key: sending the same student and skill twice gives `409` the second time.
+
+Errors (the usual `{ "error": { "code", "message" } }`):
+- `400 INVALID_REQUEST`: a field is missing or has the wrong form (the message names the field).
+- `401 UNAUTHORIZED`: missing or wrong admin key.
+- `404 STUDENT_NOT_FOUND`: no such student.
+- `404 SKILL_NOT_FOUND`: no such skill (see `GET /api/admin/skills`).
+- `409 AWARD_ALREADY_EXISTS`: this student already has this skill (one skill per student, whatever the source).
+
+### GET /api/admin/skills
+**Status: the contract is fixed, the implementation follows.** The skills list for the dropdown of the "add skill" form. The student dropdown can use `GET /api/admin/passports`.
+
+`200`
+```json
+{
+  "skills": [
+    {
+      "skillId": "SKL-001",
+      "name": "AI Literacy",
+      "category": "AI Skill",
+      "description": "Fundamentals."
+    }
+  ]
+}
+```
+Sorted by `skillId`. `category` is one of `AI Skill`, `AI Applied Skill`, `AI Advanced Skill`. No paging.
+
 ## Error codes
 
 | HTTP | code | when |
@@ -203,7 +262,10 @@ Before the first run: `startedAt`, `finishedAt` and `summary` are `null`. If the
 | 404 | `CODE_NOT_FOUND` | verification code is not in the ledger |
 | 404 | `PASSPORT_NOT_FOUND` | no passport for this student / passport ID |
 | 404 | `VERSION_NOT_FOUND` | passport has no such version |
+| 404 | `STUDENT_NOT_FOUND` | no student with this ID (`POST /api/admin/awards`) |
+| 404 | `SKILL_NOT_FOUND` | no skill with this ID (`POST /api/admin/awards`) |
 | 409 | `SYNC_ALREADY_RUNNING` | a sync is already in progress |
+| 409 | `AWARD_ALREADY_EXISTS` | the student already has this skill (`POST /api/admin/awards`) |
 | 429 | `OTP_LOCKED` | 5 wrong attempts for this code |
 | 500 | `INTERNAL_ERROR` | anything unexpected; the message is generic, details go to the server log |
 
