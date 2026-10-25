@@ -2,7 +2,7 @@
 // Run: npm run preflight-test. The live checks themselves are tested by running `npm run preflight`.
 import assert from 'node:assert/strict';
 import {
-  checkEnvironment, exitCodeFor, formatResult, looksLikeApiKeyUrl, redact, runCheck, sensitiveValues, STATUS, summarize,
+  checkEnvironment, exitCodeFor, formatResult, judgeBrevoSenders, looksLikeApiKeyUrl, redact, runCheck, sensitiveValues, STATUS, summarize,
 } from './helpers/preflightCore.js';
 
 // Secrets that are easy to find in an output
@@ -15,6 +15,7 @@ const SECRETS = {
   admin: 'ADMIN-0123456789abcdefghij',
   rpc: 'https://rpc.example/v3/RPC-KEY-0123456789abcdef',
   smtpPass: 'SMTP-PASSWORD-123',
+  brevoKey: 'BREVO-KEY-0123456789abcdef',
 };
 
 // A complete, good config
@@ -33,6 +34,7 @@ function goodConfig(overrides = {}) {
     },
     passportRefSalt: SECRETS.salt,
     smtp: { host: '', user: '', pass: SECRETS.smtpPass },
+    mail: { brevoApiKey: '', from: '' },
     jwtSecret: SECRETS.jwt,
     adminApiKey: SECRETS.admin,
     ...overrides,
@@ -132,6 +134,7 @@ await scenario('NO secret value appears in the results of the settings check, wh
     changed('chain.issuerPrivateKey', 'not-a-key'),
     changed('chain.publicRpcUrls', [SECRETS.rpc]),
     changed('smtp.host', 'smtp.example'),
+    { ...goodConfig(), mail: { brevoApiKey: SECRETS.brevoKey, from: '' } },
   ];
   for (const config of configs) {
     const text = JSON.stringify(checkEnvironment(config));
@@ -139,6 +142,38 @@ await scenario('NO secret value appears in the results of the settings check, wh
       assert(!text.includes(value), `${name} is in the output`);
     }
   }
+});
+
+await scenario('Brevo settings: a key needs MAIL_FROM; with both set the SMTP lines are gone', () => {
+  const withKey = (from) => ({ ...goodConfig(), mail: { brevoApiKey: SECRETS.brevoKey, from } });
+  assert.deepEqual(failedNames(checkEnvironment(withKey(''))), ['MAIL_FROM']);
+  assert.match(checkEnvironment(withKey('')).find((result) => result.label === 'MAIL_FROM').detail, /is empty/);
+  assert.deepEqual(failedNames(checkEnvironment(withKey('not-an-address'))), ['MAIL_FROM']);
+  const good = checkEnvironment(withKey('sender@example.org'));
+  assert.deepEqual(failedNames(good), []);
+  assert.deepEqual(warnedNames(good), []);
+  assert(good.some((result) => result.label === 'BREVO_*' && result.status === STATUS.OK));
+  assert(!good.some((result) => result.label === 'SMTP_*'), 'SMTP_* must not be judged when Brevo is used');
+  const halfSmtp = checkEnvironment({ ...withKey('sender@example.org'), smtp: { host: 'smtp.example', user: '', pass: '' } });
+  assert.deepEqual(warnedNames(halfSmtp), [], 'a half-filled SMTP is irrelevant when Brevo is used');
+});
+
+await scenario('the Brevo key is a secret: redact hides it and the settings check never shows it', () => {
+  const config = { ...goodConfig(), mail: { brevoApiKey: SECRETS.brevoKey, from: '' } };
+  assert(sensitiveValues(config).includes(SECRETS.brevoKey));
+  assert(!redact(`Brevo said ${SECRETS.brevoKey}`, sensitiveValues(config)).includes(SECRETS.brevoKey));
+  assert(!JSON.stringify(checkEnvironment(config)).includes(SECRETS.brevoKey));
+});
+
+await scenario('Brevo senders answer: a confirmed sender is ✅; a bad key, a missing or unconfirmed sender explain themselves', () => {
+  const sender = (overrides = {}) => ({ status: 200, body: { senders: [{ id: 1, name: 'BTU', email: 'Sender@Example.org', active: true, ...overrides }] } });
+  assert.match(judgeBrevoSenders(sender(), 'sender@example.org'), /sender is confirmed/);
+  assert.throws(() => judgeBrevoSenders(sender(), 'other@example.org'), /not a sender in Brevo/);
+  assert.throws(() => judgeBrevoSenders(sender({ active: false }), 'sender@example.org'), /not confirmed yet/);
+  assert.throws(() => judgeBrevoSenders({ status: 401, body: { message: 'Key not found' } }, 'sender@example.org'), /refused the API key/);
+  assert.throws(() => judgeBrevoSenders({ status: 403, body: null }, 'sender@example.org'), /refused the API key/);
+  assert.throws(() => judgeBrevoSenders({ status: 500, body: null }, 'sender@example.org'), /HTTP 500/);
+  assert.throws(() => judgeBrevoSenders({ status: 200, body: null }, 'sender@example.org'), /not a sender in Brevo/);
 });
 
 await scenario('redact hides every secret, also inside an error text, and leaves other text alone', () => {

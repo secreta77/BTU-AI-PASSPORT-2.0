@@ -5,7 +5,9 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { requireAdmin, requireStudent, signStudentToken } from '../auth/authMiddleware.js';
-import { generateLoginCode, requestOtp, verifyOtp } from '../auth/otpService.js';
+import {
+  chooseMailMethod, generateLoginCode, requestOtp, sendLoginCodeMail, sendLoginCodeWithBrevo, verifyOtp,
+} from '../auth/otpService.js';
 import { config } from '../config.js';
 import { AppError } from '../middleware/appError.js';
 import { OTP } from '../shared/constants.js';
@@ -270,6 +272,107 @@ await scenario('an empty or short JWT_SECRET is a clear setup error (not a wrong
     config.jwtSecret = SECRET;
   }
   assert.equal(world.otps.length, 0);
+});
+
+// ----- Sending the mail (Brevo, SMTP or the test inbox) -----
+
+// A fake fetch: remembers every request and answers the way Brevo does
+function createFakeFetch({ status = 201, body = { messageId: '<1@brevo>' }, rejectWith = null } = {}) {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init });
+    if (rejectWith) throw rejectWith;
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => {
+        if (body === null) throw new SyntaxError('Unexpected end of JSON input');
+        return body;
+      },
+    };
+  };
+  return { fetchImpl, calls };
+}
+
+const BREVO_KEY = 'xkeysib-test-0123456789abcdef';
+const BREVO_SENDER = 'sender@example.org';
+const LOGIN_MAIL = { email: STUDENT_EMAIL, code: '482913', firstName: 'Giorgi' };
+
+await scenario('Brevo: one POST with the key in a header, the sender, the student, and the code in the text', async () => {
+  const { fetchImpl, calls } = createFakeFetch();
+  await sendLoginCodeWithBrevo(LOGIN_MAIL, { apiKey: BREVO_KEY, from: BREVO_SENDER, fetchImpl });
+  assert.equal(calls.length, 1);
+  const { url, init } = calls[0];
+  assert.equal(url, 'https://api.brevo.com/v3/smtp/email');
+  assert.equal(init.method, 'POST');
+  assert.equal(init.headers['api-key'], BREVO_KEY);
+  assert.equal(init.headers['content-type'], 'application/json');
+  assert(init.signal instanceof AbortSignal, 'a request without a time limit can hang forever');
+  const body = JSON.parse(init.body);
+  assert.equal(body.sender.email, BREVO_SENDER);
+  assert.deepEqual(body.to, [{ email: STUDENT_EMAIL }]);
+  assert.equal(body.subject, 'Your BTU AI Passport login code');
+  assert(body.textContent.includes('482913') && body.textContent.includes('Hello Giorgi'));
+  assert(body.textContent.includes(`${OTP.VALID_MINUTES} minutes`));
+  assert(!init.body.includes(BREVO_KEY), 'the API key must travel only in the header');
+});
+
+await scenario('Brevo: a refusal becomes an Error with the status and the Brevo message, and the key is never in it', async () => {
+  const refused = createFakeFetch({ status: 401, body: { code: 'unauthorized', message: `Key not found: ${BREVO_KEY}` } });
+  await assert.rejects(
+    sendLoginCodeWithBrevo(LOGIN_MAIL, { apiKey: BREVO_KEY, from: BREVO_SENDER, fetchImpl: refused.fetchImpl }),
+    (error) => {
+      assert.match(error.message, /Brevo answered 401: Key not found/);
+      assert(!error.message.includes(BREVO_KEY), 'the key is in the error text');
+      return true;
+    },
+  );
+  const broken = createFakeFetch({ status: 500, body: null });
+  await assert.rejects(
+    sendLoginCodeWithBrevo(LOGIN_MAIL, { apiKey: BREVO_KEY, from: BREVO_SENDER, fetchImpl: broken.fetchImpl }),
+    (error) => error.message === 'Brevo answered 500',
+  );
+});
+
+await scenario('Brevo: a network problem is logged without the key, and asking for the code still answers ok', async () => {
+  const world = createWorld();
+  const { fetchImpl } = createFakeFetch({ rejectWith: new TypeError('fetch failed') });
+  world.deps.sendMail = (mail) => sendLoginCodeWithBrevo(mail, { apiKey: BREVO_KEY, from: BREVO_SENDER, fetchImpl });
+  assert.deepEqual(await requestOtp(STUDENT_EMAIL, world.deps), { ok: true });
+  await flush();
+  assert.equal(world.errors.length, 1);
+  assert.match(world.errors[0], /fetch failed/);
+  assert(!world.errors[0].includes(BREVO_KEY));
+  assert.equal(world.otps.length, 1); // the code exists; the student can ask again
+});
+
+await scenario('Brevo: an empty MAIL_FROM is a clear setup error and nothing is sent', async () => {
+  const { fetchImpl, calls } = createFakeFetch();
+  await assert.rejects(sendLoginCodeWithBrevo(LOGIN_MAIL, { apiKey: BREVO_KEY, from: '', fetchImpl }), /MAIL_FROM/);
+  assert.equal(calls.length, 0);
+});
+
+await scenario('the mail method: Brevo first, then SMTP, then the test inbox', () => {
+  const setup = (brevoApiKey, host) => ({ mail: { brevoApiKey }, smtp: { host } });
+  assert.equal(chooseMailMethod(setup('key', 'smtp.example')), 'brevo');
+  assert.equal(chooseMailMethod(setup('key', '')), 'brevo');
+  assert.equal(chooseMailMethod(setup('', 'smtp.example')), 'smtp');
+  assert.equal(chooseMailMethod(setup('', '')), 'test-inbox');
+});
+
+await scenario('with BREVO_API_KEY set, the real sender goes through the Brevo API (not SMTP)', async () => {
+  const { fetchImpl, calls } = createFakeFetch();
+  const original = { ...config.mail };
+  config.mail.brevoApiKey = BREVO_KEY;
+  config.mail.from = BREVO_SENDER;
+  try {
+    await sendLoginCodeMail(LOGIN_MAIL, { fetchImpl });
+  } finally {
+    Object.assign(config.mail, original);
+  }
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].init.headers['api-key'], BREVO_KEY);
+  assert.equal(JSON.parse(calls[0].init.body).sender.email, BREVO_SENDER);
 });
 
 // ----- Student access -----

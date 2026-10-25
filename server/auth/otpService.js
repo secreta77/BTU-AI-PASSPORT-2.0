@@ -12,6 +12,10 @@ import { getJwtSecret, signStudentToken, TOKEN_LIFETIME_SECONDS } from './authMi
 const CODE_LENGTH = 6;
 const CODE_PATTERN = new RegExp(`^\\d{${CODE_LENGTH}}$`);
 const SMTP_PORT = 587; // STARTTLS, the usual port of mail providers
+const BREVO_SEND_URL = 'https://api.brevo.com/v3/smtp/email';
+const BREVO_TIMEOUT_MS = 10_000;
+const MAIL_SENDER_NAME = 'BTU AI Passport';
+const MAIL_SUBJECT = 'Your BTU AI Passport login code';
 
 const defaultDeps = {
   db: queries,
@@ -114,7 +118,55 @@ function sameHash(storedHex, computedHex) {
 
 // ---------- Mail ----------
 
-let mailSetup = null; // created on the first mail and reused
+// How the login mail goes out (Decision 7). Brevo is first: it is an HTTPS request, so it also works on hosts that
+// block SMTP ports (Render free). Then real SMTP. With neither, an Ethereal test account (a fake inbox).
+export function chooseMailMethod(mailConfig = config) {
+  if (mailConfig.mail.brevoApiKey !== '') {
+    return 'brevo';
+  }
+  return mailConfig.smtp.host !== '' ? 'smtp' : 'test-inbox';
+}
+
+function loginMailText({ firstName, code }) {
+  return `Hello ${firstName},\n\nYour login code is ${code}.\nIt is valid for ${OTP.VALID_MINUTES} minutes and works once.\n\n`
+    + 'If you did not ask for it, ignore this message.';
+}
+
+// One HTTPS request to the Brevo API. Throws an Error with a clear text when Brevo refuses; the API key is never in it.
+export async function sendLoginCodeWithBrevo({ email, code, firstName }, { apiKey, from, fetchImpl = fetch }) {
+  if (from === '') {
+    throw new Error('MAIL_FROM is empty: set the sender address that is confirmed in Brevo');
+  }
+  const response = await fetchImpl(BREVO_SEND_URL, {
+    method: 'POST',
+    headers: { 'api-key': apiKey, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({
+      sender: { name: MAIL_SENDER_NAME, email: from },
+      to: [{ email }],
+      subject: MAIL_SUBJECT,
+      textContent: loginMailText({ firstName, code }),
+    }),
+    signal: AbortSignal.timeout(BREVO_TIMEOUT_MS), // a stuck request must not wait forever
+  });
+  if (!response.ok) {
+    throw new Error(`Brevo answered ${response.status}${await brevoProblem(response, apiKey)}`);
+  }
+}
+
+// Brevo explains a problem as JSON { code, message }. The key is removed in case a message ever repeats it.
+async function brevoProblem(response, apiKey) {
+  try {
+    const { message } = await response.json();
+    if (typeof message !== 'string' || message === '') {
+      return '';
+    }
+    return `: ${apiKey === '' ? message : message.split(apiKey).join('***')}`;
+  } catch {
+    return '';
+  }
+}
+
+let mailSetup = null; // created on the first SMTP / test-inbox mail and reused
 
 // Real SMTP when SMTP_HOST is set. Otherwise an Ethereal test account (a fake inbox on the internet):
 // the mail is not delivered anywhere, the console prints a link where the mail can be read (Decision 7).
@@ -140,7 +192,12 @@ async function createMailSetup() {
   };
 }
 
-async function sendLoginCodeMail({ email, code, firstName }) {
+// `fetchImpl` is only for tests; the real server uses the built-in fetch
+export async function sendLoginCodeMail(mail, { fetchImpl = fetch } = {}) {
+  if (chooseMailMethod() === 'brevo') {
+    await sendLoginCodeWithBrevo(mail, { apiKey: config.mail.brevoApiKey, from: config.mail.from, fetchImpl });
+    return;
+  }
   try {
     mailSetup ??= await createMailSetup();
   } catch (error) {
@@ -148,13 +205,12 @@ async function sendLoginCodeMail({ email, code, firstName }) {
     throw error;
   }
   const info = await mailSetup.transport.sendMail({
-    from: `"BTU AI Passport" <${mailSetup.from}>`,
-    to: email,
-    subject: 'Your BTU AI Passport login code',
-    text: `Hello ${firstName},\n\nYour login code is ${code}.\nIt is valid for ${OTP.VALID_MINUTES} minutes and works once.\n\n`
-      + 'If you did not ask for it, ignore this message.',
+    from: `"${MAIL_SENDER_NAME}" <${mailSetup.from}>`,
+    to: mail.email,
+    subject: MAIL_SUBJECT,
+    text: loginMailText(mail),
   });
   if (mailSetup.isTestAccount) {
-    console.log(`Login mail for ${email} (test inbox, open this link to read it): ${nodemailer.getTestMessageUrl(info)}`);
+    console.log(`Login mail for ${mail.email} (test inbox, open this link to read it): ${nodemailer.getTestMessageUrl(info)}`);
   }
 }

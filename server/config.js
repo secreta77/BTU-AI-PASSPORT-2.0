@@ -58,6 +58,12 @@ export const config = {
     user: readText('SMTP_USER'),
     pass: readText('SMTP_PASS'),
   },
+  // Brevo mail API (HTTPS). When BREVO_API_KEY is set, login mails go through it instead of SMTP. It works on hosts
+  // that block SMTP ports (Render free), because it is an ordinary HTTPS request.
+  mail: {
+    brevoApiKey: readText('BREVO_API_KEY'),
+    from: readText('MAIL_FROM'), // the sender address confirmed in Brevo (Senders)
+  },
   jwtSecret: readText('JWT_SECRET'),
   adminApiKey: readText('ADMIN_API_KEY'),
 };

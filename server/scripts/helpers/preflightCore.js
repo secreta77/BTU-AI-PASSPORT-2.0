@@ -33,6 +33,7 @@ export function sensitiveValues(config) {
     config.jwtSecret,
     config.adminApiKey,
     config.smtp.pass,
+    config.mail.brevoApiKey,
   ].filter((value) => typeof value === 'string' && value.length >= MIN_SENSITIVE_LENGTH);
 }
 
@@ -98,12 +99,43 @@ export function checkEnvironment(config) {
   if (isLocalAddress(config.publicBaseUrl)) {
     results.push(warn('PUBLIC_BASE_URL', 'points to this computer: fine while developing, but a QR code scanned with a phone will not open it (set it before the demo)'));
   }
-  if (config.smtp.host === '') {
+  if (config.mail.brevoApiKey !== '') {
+    results.push(...checkBrevoSettings(config.mail)); // Brevo replaces SMTP, so SMTP_* is not judged then
+  } else if (config.smtp.host === '') {
     results.push(ok('SMTP_*', 'empty: login mails go to a test inbox (Ethereal) and the link is printed in the server console'));
   } else if (config.smtp.user === '' || config.smtp.pass === '') {
     results.push(warn('SMTP_*', 'SMTP_HOST is set but SMTP_USER or SMTP_PASS is empty'));
   }
   return results;
+}
+
+function checkBrevoSettings({ from }) {
+  if (from === '') {
+    return [fail('MAIL_FROM', 'is empty: Brevo needs the sender address that you confirmed in Brevo (Senders)')];
+  }
+  if (!/^[^@\s]+@[^@\s]+$/.test(from)) {
+    return [fail('MAIL_FROM', 'is not an email address')];
+  }
+  return [ok('BREVO_*', 'login mails go through Brevo (HTTPS), not SMTP')];
+}
+
+// Reads the answer of GET /v3/senders: returns a text (✅) or throws an Error with the reason (❌ through runCheck)
+export function judgeBrevoSenders({ status, body }, from) {
+  if (status === 401 || status === 403) {
+    throw new Error(`Brevo refused the API key (HTTP ${status}): make a new key under SMTP & API`);
+  }
+  if (status !== 200) {
+    throw new Error(`Brevo answered HTTP ${status}`);
+  }
+  const senders = Array.isArray(body?.senders) ? body.senders : [];
+  const sender = senders.find((item) => typeof item.email === 'string' && item.email.toLowerCase() === from.toLowerCase());
+  if (sender === undefined) {
+    throw new Error('MAIL_FROM is not a sender in Brevo: add it under Senders, then confirm the mail that Brevo sends');
+  }
+  if (sender.active === false) {
+    throw new Error('the sender is in Brevo but not confirmed yet: open the confirmation mail from Brevo');
+  }
+  return 'Brevo accepts the key and the sender is confirmed';
 }
 
 // A URL whose query or long path part looks like a key (https://rpc.example/v3/0123456789abcdef0123456789abcdef)
