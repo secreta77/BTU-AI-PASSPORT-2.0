@@ -7,11 +7,12 @@
 [build.environment]
   NODE_VERSION = "24"
 
-# TODO: the API is not online yet. When it is, add a proxy here, ABOVE the SPA redirect:
-# [[redirects]]
-#   from = "/api/*"
-#   to = "https://<api-host>/api/:splat"
-#   status = 200
+# Proxy to the real API. Must stay ABOVE the SPA redirect, otherwise the SPA catches /api
+[[redirects]]
+  from = "/api/*"
+  to = "https://btu-ai-passport-api.onrender.com/api/:splat"
+  status = 200
+  force = true
 
 # SPA fallback: lets /verify/BTU-V-... open directly
 [[redirects]]
