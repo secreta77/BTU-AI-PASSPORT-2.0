@@ -5,9 +5,9 @@
   (dragleave)="onDragLeave()"
   (drop)="onDrop($event)"
 >
-  <p class="drop__text">{{ 'verify.file.drop' | t }}</p>
+  <p class="drop__text">{{ 'verify.file.drop' | t: language() }}</p>
   <button class="drop__button" type="button" (click)="fileInput.click()">
-    {{ 'verify.file.choose' | t }}
+    {{ 'verify.file.choose' | t: language() }}
   </button>
   <input
     #fileInput

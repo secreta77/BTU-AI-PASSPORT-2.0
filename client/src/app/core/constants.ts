@@ -60,6 +60,15 @@ export const STUDENT_API_PATH = '/student/';
 export const STAMP_IMAGE_URL = '/assets/stamps/';
 export const STAMP_IMAGE_EXTENSION = '.png';
 
+// Real pixel size of each stamp file: NgOptimizedImage needs it to reserve the right space.
+// The visible size is set by CSS (max-width/max-height + object-fit: contain).
+export const STAMP_IMAGE_SIZE: Record<string, { width: number; height: number }> = {
+  'BDG-AI-001': { width: 328, height: 284 },
+  'BDG-AI-002': { width: 656, height: 211 },
+  'BDG-AI-003': { width: 304, height: 304 },
+};
+export const DEFAULT_STAMP_IMAGE_SIZE = { width: 304, height: 304 };
+
 // Used when the server sends no usable Content-Disposition header
 export const FALLBACK_PDF_FILE_NAME = 'BTU-AI-passport.pdf';
 

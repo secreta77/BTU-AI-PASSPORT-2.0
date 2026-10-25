@@ -1,11 +1,38 @@
-<h1 #pageTitle tabindex="-1">{{ 'myPassport.title' | t }}</h1>
+<h1 #pageTitle tabindex="-1">{{ 'myPassport.title' | t: language() }}</h1>
+
+<!-- The live region always exists, so the screen reader announces the text when it appears -->
+<div aria-live="polite">
+  @if (state() === 'loading') {
+    <span class="sr-only">{{ 'myPassport.loading' | t: language() }}</span>
+  }
+</div>
 
 @switch (state()) {
   @case ('loading') {
-    <p class="muted" aria-live="polite">{{ 'myPassport.loading' | t }}</p>
+    <div aria-hidden="true">
+      <section class="card card--skeleton">
+        <app-skeleton variant="title" />
+        <app-skeleton variant="line" />
+        <app-skeleton variant="line" />
+        <app-skeleton variant="line" />
+        <app-skeleton variant="line-short" />
+      </section>
+
+      <ul class="skills skills--skeleton">
+        @for (item of skeletonItems; track item) {
+          <li class="skill">
+            <app-skeleton variant="square" />
+            <div class="skill__body skill__body--skeleton">
+              <app-skeleton variant="line-short" />
+              <app-skeleton variant="line" />
+            </div>
+          </li>
+        }
+      </ul>
+    </div>
   }
   @case ('error') {
-    <p class="notice notice--error" aria-live="polite">{{ loadErrorKey() | t }}</p>
+    <p class="notice notice--error" aria-live="polite">{{ loadErrorKey() | t: language() }}</p>
   }
   @case ('ready') {
     @if (passport(); as data) {
@@ -14,57 +41,63 @@
 
         <dl class="facts">
           <div class="facts__row">
-            <dt>{{ 'myPassport.passportId' | t }}</dt>
+            <dt>{{ 'myPassport.passportId' | t: language() }}</dt>
             <dd class="facts__value--break">{{ data.passportId }}</dd>
           </div>
           <div class="facts__row">
-            <dt>{{ 'myPassport.version' | t }}</dt>
+            <dt>{{ 'myPassport.version' | t: language() }}</dt>
             <dd>v{{ data.latest.version }}</dd>
           </div>
           <div class="facts__row">
-            <dt>{{ 'myPassport.issuedAt' | t }}</dt>
+            <dt>{{ 'myPassport.issuedAt' | t: language() }}</dt>
             <dd>{{ data.latest.issuedAt | date: 'dd.MM.yyyy' : 'UTC' }}</dd>
           </div>
           <div class="facts__row">
-            <dt>{{ 'myPassport.verificationCode' | t }}</dt>
+            <dt>{{ 'myPassport.verificationCode' | t: language() }}</dt>
             <dd class="facts__value--break">
               {{ data.latest.verificationCode }}
               <a class="facts__link" [routerLink]="['/verify', data.latest.verificationCode]">
-                {{ 'myPassport.verifyLink' | t }}
+                {{ 'myPassport.verifyLink' | t: language() }}
               </a>
             </dd>
           </div>
         </dl>
 
         <button class="button" type="button" [disabled]="downloading()" (click)="downloadPdf(data)">
-          {{ (downloading() ? 'myPassport.downloading' : 'myPassport.download') | t }}
+          {{ (downloading() ? 'myPassport.downloading' : 'myPassport.download') | t: language() }}
         </button>
         <div aria-live="polite">
           @if (downloadFailed()) {
-            <p class="notice notice--error">{{ 'myPassport.error.download' | t }}</p>
+            <p class="notice notice--error">{{ 'myPassport.error.download' | t: language() }}</p>
           }
         </div>
       </section>
 
-      <h2 class="skills-title">{{ 'myPassport.skills.title' | t }}</h2>
+      <h2 class="skills-title">{{ 'myPassport.skills.title' | t: language() }}</h2>
       @if (data.skills.length === 0) {
-        <p class="muted">{{ 'myPassport.skills.empty' | t }}</p>
+        <p class="muted">{{ 'myPassport.skills.empty' | t: language() }}</p>
       } @else {
         <ul class="skills">
           @for (skill of data.skills; track skill.skillId) {
             <li class="skill">
               <!-- Decorative: the category is written next to it -->
-              <img class="skill__stamp" [src]="stampUrl(skill.stampCode)" alt="" />
+              <img
+                class="skill__stamp"
+                [ngSrc]="stampUrl(skill.stampCode)"
+                [width]="stampSize(skill.stampCode).width"
+                [height]="stampSize(skill.stampCode).height"
+                alt=""
+              />
               <div class="skill__body">
                 <h3 class="skill__name" lang="en">{{ skill.skillName }}</h3>
                 <p class="skill__meta">
                   @if (categoryLabelKey(skill.skillCategory); as key) {
-                    {{ key | t }}
+                    {{ key | t: language() }}
                   } @else {
                     <span lang="en">{{ skill.skillCategory }}</span>
                   }
                   ·
-                  {{ 'myPassport.skills.earned' | t }}
+                  {{ 'myPassport.skills.earned' | t: language() }}
                   <!-- Date only (YYYY-MM-DD): Angular reads it as local time, so no UTC here (it would show the day before) -->
                   {{ skill.dateEarned | date: 'dd.MM.yyyy' }}
                 </p>

@@ -1,14 +1,15 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
-import { LanguageService, type TranslateParams } from './language.service';
+import { LanguageService, type Language, type TranslateParams } from './language.service';
 import type { TranslationKey } from './ka';
 
-// Usage: {{ 'header.title' | t }} or {{ 'verify.outdatedHint' | t: { n: 2 } }}
-// pure: false so the text updates when the language signal changes.
-@Pipe({ name: 't', pure: false })
+// Usage: {{ 'header.title' | t: language() }}
+//        {{ 'verify.outdatedHint' | t: language() : { n: 2 } }}
+// The pipe is pure. The language is an argument so Angular runs it again when the language changes.
+@Pipe({ name: 't' })
 export class TranslatePipe implements PipeTransform {
   private readonly languageService = inject(LanguageService);
 
-  transform(key: TranslationKey, params?: TranslateParams): string {
-    return this.languageService.translate(key, params);
+  transform(key: TranslationKey, language: Language, params?: TranslateParams): string {
+    return this.languageService.translate(key, params, language);
   }
 }

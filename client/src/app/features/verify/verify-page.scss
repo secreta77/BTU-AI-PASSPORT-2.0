@@ -138,3 +138,11 @@
     color: $color-error;
   }
 }
+
+// Skeleton of the result card: lines stacked with the same rhythm as the real facts
+.card--skeleton,
+.block__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+}

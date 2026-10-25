@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { LanguageService } from '../../i18n/language.service';
 import { TranslatePipe } from '../../i18n/translate.pipe';
 
 @Component({
@@ -8,4 +9,6 @@ import { TranslatePipe } from '../../i18n/translate.pipe';
   templateUrl: './footer.html',
   styleUrl: './footer.scss',
 })
-export class Footer {}
+export class Footer {
+  protected readonly language = inject(LanguageService).language;
+}
