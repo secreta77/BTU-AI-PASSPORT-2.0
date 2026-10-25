@@ -10,6 +10,7 @@ dotenv.config({ path: path.join(serverDir, '.env') });
 
 const DEFAULT_PORT = 3000;
 const DEFAULT_PUBLIC_BASE_URL = 'http://localhost:4200'; // Angular dev server
+const DEFAULT_GOOGLE_CREDENTIALS_PATH = './credentials/google-service-account.json'; // where the key lives on a dev computer
 
 function readText(name, fallback = '') {
   const value = (process.env[name] ?? '').trim();
@@ -35,7 +36,9 @@ export const config = {
   databaseUrl: readText('DATABASE_URL'),
   google: {
     sheetId: readText('GOOGLE_SHEET_ID'),
-    credentialsPath: readText('GOOGLE_CREDENTIALS_PATH'),
+    // GOOGLE_CREDENTIALS_PATH is ours; GOOGLE_APPLICATION_CREDENTIALS is Google's usual name and works too.
+    // On Render set either one to /etc/secrets/<file name of the Secret File>.
+    credentialsPath: readText('GOOGLE_CREDENTIALS_PATH', readText('GOOGLE_APPLICATION_CREDENTIALS', DEFAULT_GOOGLE_CREDENTIALS_PATH)),
   },
   supabase: {
     url: readText('SUPABASE_URL'),

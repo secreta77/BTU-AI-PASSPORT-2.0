@@ -3,13 +3,16 @@
 // It only READS: it writes nothing, sends no transaction and no mail. It never prints a secret, only names and
 // public values (addresses, host names, counts). Exit code 1 if anything is ❌.
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ethers } from 'ethers';
 import nodemailer from 'nodemailer';
 import { config } from '../config.js';
 import {
-  checkEnvironment, exitCodeFor, formatResult, judgeBrevoSenders, ok, runCheck, sensitiveValues, STATUS, summarize, warn,
+  checkCredentialsFile, checkEnvironment, exitCodeFor, formatResult, judgeBrevoSenders, ok, runCheck, sensitiveValues, STATUS, summarize, warn,
 } from './helpers/preflightCore.js';
 
+const serverDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REQUIRED_TABLES = ['students', 'passports', 'skills', 'skill_awards', 'passport_versions', 'sync_log', 'otp_codes'];
 const MIN_POSTGRES_VERSION_NUM = 150000; // schema.sql uses NULLS NOT DISTINCT
 const MIN_ISSUER_BALANCE_ETH = 0.02; // the bootstrap sends about 18 transactions
@@ -38,6 +41,7 @@ function heading(title) {
 
 heading('Settings');
 await check('Settings', () => checkEnvironment(config));
+await check('Google key file', () => checkCredentialsFile(config.google.credentialsPath, { serverDir }));
 
 // ---------- Database ----------
 
