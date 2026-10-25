@@ -50,6 +50,9 @@ export const API_ERROR_CODE = {
   PASSPORT_NOT_FOUND: 'PASSPORT_NOT_FOUND',
   VERSION_NOT_FOUND: 'VERSION_NOT_FOUND',
   SYNC_ALREADY_RUNNING: 'SYNC_ALREADY_RUNNING',
+  STUDENT_NOT_FOUND: 'STUDENT_NOT_FOUND',
+  SKILL_NOT_FOUND: 'SKILL_NOT_FOUND',
+  AWARD_ALREADY_EXISTS: 'AWARD_ALREADY_EXISTS',
 } as const;
 
 // Student session (sessionStorage: gone when the tab is closed)
@@ -68,6 +71,10 @@ export const ADMIN_API_PATH = '/admin/';
 // Admin page timing
 export const SYNC_POLL_INTERVAL_MS = 2000;
 export const SEARCH_DEBOUNCE_MS = 300;
+
+// Manual award form (docs/api.md, POST /api/admin/awards)
+export const STUDENT_ID_PATTERN = /^BTU-T-\d{4}$/;
+export const EARNED_THROUGH_MAX_LENGTH = 120;
 
 // Stamp image of a passport skill, e.g. /assets/stamps/BDG-AI-001.png
 export const STAMP_IMAGE_URL = '/assets/stamps/';

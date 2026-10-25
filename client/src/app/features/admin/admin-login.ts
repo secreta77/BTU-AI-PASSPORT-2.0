@@ -23,10 +23,6 @@ export class AdminLogin {
 
   protected submit(event: Event): void {
     event.preventDefault(); // no page reload
-    const value = this.key.value.trim();
-    if (!value) {
-      return;
-    }
-    this.adminAuth.login(value);
+    this.adminAuth.login(this.key.value);
   }
 }

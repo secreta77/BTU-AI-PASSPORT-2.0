@@ -48,3 +48,31 @@ export interface SyncStartResponse {
   status: 'started';
   startedAt: string;
 }
+
+// One item of GET /api/admin/skills
+export interface AdminSkill {
+  skillId: string;
+  name: string;
+  category: string; // 'AI Skill' | 'AI Applied Skill' | 'AI Advanced Skill'
+  description: string;
+}
+
+// Body of POST /api/admin/awards
+export interface CreateAwardRequest {
+  studentId: string;
+  skillId: string;
+  dateEarned: string; // YYYY-MM-DD
+  earnedThrough: string | null;
+}
+
+// POST /api/admin/awards -> 201
+export interface CreateAwardResponse {
+  recordId: string;
+  studentId: string;
+  skillId: string;
+  dateEarned: string;
+  earnedThrough: string | null;
+  source: 'manual';
+  status: 'pending';
+  syncStarted: boolean; // false: a sync was already running
+}

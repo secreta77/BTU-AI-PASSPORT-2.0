@@ -1,0 +1,119 @@
+<section class="card" aria-labelledby="award-title">
+  <h2 id="award-title">{{ 'admin.awards.title' | t: language() }}</h2>
+  <p class="muted">{{ 'admin.awards.intro' | t: language() }}</p>
+
+  <form class="form" [formGroup]="form" (submit)="submit($event)" novalidate>
+    <div class="field">
+      <label for="award-student">{{ 'admin.awards.studentId' | t: language() }}</label>
+      <input
+        id="award-student"
+        class="field__input"
+        type="text"
+        autocomplete="off"
+        formControlName="studentId"
+        [attr.aria-invalid]="errorKey('studentId') ? 'true' : null"
+        [attr.aria-describedby]="errorKey('studentId') ? 'award-student-hint award-student-error' : 'award-student-hint'"
+      />
+      <p id="award-student-hint" class="field__hint">
+        {{ 'admin.awards.studentIdHint' | t: language() }}
+      </p>
+      <p id="award-student-error" class="field__error" aria-live="polite">
+        @if (errorKey('studentId'); as key) {
+          {{ key | t: language() }}
+        }
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="award-skill">{{ 'admin.awards.skill' | t: language() }}</label>
+      @switch (skillsState().status) {
+        @case ('ready') {
+          <select
+            id="award-skill"
+            class="field__input"
+            formControlName="skillId"
+            [attr.aria-invalid]="errorKey('skillId') ? 'true' : null"
+            [attr.aria-describedby]="errorKey('skillId') ? 'award-skill-error' : null"
+          >
+            <option value="">{{ 'admin.awards.skillPlaceholder' | t: language() }}</option>
+            @for (skill of skills(); track skill.skillId) {
+              <option [value]="skill.skillId">
+                {{ skill.name }}
+                @if (categoryKey(skill.category); as key) {
+                  · {{ key | t: language() }}
+                }
+              </option>
+            }
+          </select>
+        }
+        @case ('error') {
+          <p class="notice notice--error" role="alert">
+            {{ 'admin.awards.skillsError' | t: language() }}
+          </p>
+        }
+        @default {
+          <ui-skeleton variant="block" />
+          <span class="sr-only">{{ 'admin.loading' | t: language() }}</span>
+        }
+      }
+      <p id="award-skill-error" class="field__error" aria-live="polite">
+        @if (errorKey('skillId'); as key) {
+          {{ key | t: language() }}
+        }
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="award-date">{{ 'admin.awards.dateEarned' | t: language() }}</label>
+      <input
+        id="award-date"
+        class="field__input"
+        type="date"
+        formControlName="dateEarned"
+        [max]="maxDate"
+        [attr.aria-invalid]="errorKey('dateEarned') ? 'true' : null"
+        [attr.aria-describedby]="errorKey('dateEarned') ? 'award-date-error' : null"
+      />
+      <p id="award-date-error" class="field__error" aria-live="polite">
+        @if (errorKey('dateEarned'); as key) {
+          {{ key | t: language() }}
+        }
+      </p>
+    </div>
+
+    <div class="field">
+      <label for="award-through">{{ 'admin.awards.earnedThrough' | t: language() }}</label>
+      <input
+        id="award-through"
+        class="field__input"
+        type="text"
+        autocomplete="off"
+        formControlName="earnedThrough"
+        [attr.aria-invalid]="errorKey('earnedThrough') ? 'true' : null"
+        [attr.aria-describedby]="errorKey('earnedThrough') ? 'award-through-hint award-through-error' : 'award-through-hint'"
+      />
+      <p id="award-through-hint" class="field__hint">
+        {{ 'admin.awards.earnedThroughHint' | t: language() }}
+      </p>
+      <p id="award-through-error" class="field__error" aria-live="polite">
+        @if (errorKey('earnedThrough'); as key) {
+          {{ key | t: language() }}
+        }
+      </p>
+    </div>
+
+    <button class="button" type="submit" [disabled]="pending()">
+      {{ (pending() ? 'admin.awards.submitting' : 'admin.awards.submit') | t: language() }}
+    </button>
+
+    <!-- The live region always exists, so the screen reader announces the result when it appears -->
+    <div aria-live="polite">
+      @if (successKey(); as key) {
+        <p class="notice notice--success">{{ key | t: language() }}</p>
+      }
+      @if (failureKey(); as key) {
+        <p class="notice notice--error">{{ key | t: language() }}</p>
+      }
+    </div>
+  </form>
+</section>

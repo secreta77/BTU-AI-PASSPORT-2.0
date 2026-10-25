@@ -17,12 +17,4 @@
   display: flex;
   flex-direction: column;
   gap: $space-sm;
-
-  &__input {
-    width: 100%;
-    padding: $space-sm;
-    border: 1px solid $color-text-muted;
-    border-radius: $radius-md;
-    font: inherit;
-  }
 }

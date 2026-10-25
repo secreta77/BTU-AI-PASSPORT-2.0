@@ -44,6 +44,16 @@ export class AdminSyncService {
     });
   }
 
+  // A run was started by someone else (e.g. the award form): show it and poll like our own
+  watchStartedRun(): void {
+    if (this.state() === 'starting' || this.state() === 'running') {
+      return;
+    }
+    this.alreadyRunning.set(false);
+    this.status.set(null);
+    this.followRun();
+  }
+
   // The page was left while a sync was running: pick it up again when the admin returns
   resume(): void {
     if (this.state() === 'starting' || this.state() === 'running') {
