@@ -12,6 +12,13 @@ export const ka = {
 
   'common.comingSoon': 'მალე დაემატება.',
 
+  'seo.description':
+    'BTU-ს AI უნარების ციფრული პასპორტის გადამოწმება: QR-ით ან კოდით, ბლოკჩეინზე დამოწმებული.',
+  'seo.title.verify': 'პასპორტის გადამოწმება',
+  'seo.title.login': 'შესვლა',
+  'seo.title.myPassport': 'ჩემი პასპორტი',
+  'seo.title.admin': 'ადმინისტრირება',
+
   'verify.title': 'პასპორტის გადამოწმება',
   'verify.codeLabel': 'ვერიფიკაციის კოდი',
   'verify.enterCode': 'შეიყვანეთ ვერიფიკაციის კოდი.',

@@ -8,26 +8,34 @@ const loadVerifyPage = () => import('./features/verify/verify-page').then((m) =>
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'verify' },
-  { path: 'verify', loadComponent: loadVerifyPage },
-  { path: 'verify/:code', loadComponent: loadVerifyPage },
+  { path: 'verify', loadComponent: loadVerifyPage, data: { titleKey: 'seo.title.verify' } },
+  {
+    path: 'verify/:code',
+    loadComponent: loadVerifyPage,
+    data: { titleKey: 'seo.title.verify', noindex: true },
+  },
   {
     path: 'login',
+    data: { titleKey: 'seo.title.login', noindex: true },
     loadComponent: () => import('./features/student/login-page').then((m) => m.LoginPage),
   },
   {
     path: 'my-passport',
+    data: { titleKey: 'seo.title.myPassport', noindex: true },
     canActivate: [studentGuard],
     loadComponent: () =>
       import('./features/student/my-passport-page').then((m) => m.MyPassportPage),
   },
   {
     path: 'admin/passports/:id',
+    data: { titleKey: 'seo.title.admin', noindex: true },
     canActivate: [adminGuard],
     loadComponent: () =>
       import('./features/admin/admin-passport-detail').then((m) => m.AdminPassportDetail),
   },
   {
     path: 'admin',
+    data: { titleKey: 'seo.title.admin', noindex: true },
     loadComponent: () => import('./features/admin/admin-page').then((m) => m.AdminPage),
   },
   { path: '**', redirectTo: 'verify' },

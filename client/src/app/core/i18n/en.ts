@@ -14,6 +14,13 @@ export const en: Translations = {
 
   'common.comingSoon': 'Coming soon.',
 
+  'seo.description':
+    'Verify a BTU AI Skills Digital Passport by QR or code, anchored on the blockchain.',
+  'seo.title.verify': 'Verify a passport',
+  'seo.title.login': 'Log in',
+  'seo.title.myPassport': 'My passport',
+  'seo.title.admin': 'Admin',
+
   'verify.title': 'Verify a passport',
   'verify.codeLabel': 'Verification code',
   'verify.enterCode': 'Enter a verification code.',
