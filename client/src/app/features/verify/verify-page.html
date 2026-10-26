@@ -1,3 +1,7 @@
+@if (authService.isLoggedIn()) {
+  <a class="back-link" routerLink="/my-passport">{{ 'verify.backToPassport' | t: language() }}</a>
+}
+
 <h1>{{ 'verify.title' | t: language() }}</h1>
 
 <form class="code-form" (submit)="submit($event)">

@@ -10,6 +10,11 @@ export const en: Translations = {
   'header.login': 'Log in',
   'header.myPassport': 'My passport',
   'header.logout': 'Log out',
+  'header.verify': 'Verify',
+  'header.menuOpen': 'Open menu',
+  'header.menuClose': 'Close menu',
+  'verify.backToPassport': '← My passport',
+  'header.admin': 'Administration',
   'footer.text': 'BTU AI Skills Digital Passport. Hackathon prototype.',
 
   'common.comingSoon': 'Coming soon.',
@@ -74,6 +79,7 @@ export const en: Translations = {
   'status.latest': 'Latest version',
   'status.outdated': 'Outdated version',
 
+  'login.adminLink': 'BTU staff? Administration →',
   'login.title': 'Student login',
   'login.subtitle': 'Enter your email and we will send you a one-time code.',
   'login.email.label': 'Email',

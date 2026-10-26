@@ -9,6 +9,7 @@ A UI piece used in two places goes here.
 |---|---|---|
 | `Skeleton` | `ui-skeleton` | `variant`: `line`, `line-short`, `title`, `block`, `square` |
 | `StatusBadge` | `ui-status-badge` | `variant`: `latest` / `outdated`, `label` (text) |
+| `Avatar` | `ui-avatar` | `name` (initials), `icon`: `user` / `admin` (when no name), `label` (accessible name) |
 | `FileDrop` | `ui-file-drop` | `dropText`, `chooseText`, `accept`, output `fileChosen` |
 
 Design tokens and shared styles are in `src/styles/`:

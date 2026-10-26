@@ -3,8 +3,11 @@
 @use 'mixins' as *;
 
 .button {
+  @include smooth(background-color, color, border-color, transform);
+
   padding: $space-sm $space-lg;
-  border: 0;
+  // Same-size border on every variant keeps filled and outline buttons equal
+  border: 1px solid $color-primary;
   border-radius: $radius-md;
   background: $color-primary;
   color: $color-on-primary;
@@ -12,17 +15,47 @@
   font-weight: 600;
   cursor: pointer;
 
+  @include hover-only {
+    &:not(:disabled) {
+      background: $color-primary-hover;
+      border-color: $color-primary-hover;
+    }
+  }
+
+  @include press;
+
   &:disabled {
     opacity: 0.6;
     cursor: default;
+  }
+
+  // Secondary action: border and text take the color of the parent
+  &--outline {
+    border-color: currentColor;
+    background: transparent;
+    color: $color-dark;
+
+    @include hover-only {
+      &:not(:disabled) {
+        border-color: currentColor;
+        background: $color-hover-light;
+      }
+    }
+  }
+
+  &--small {
+    padding: $space-xs $space-md;
+    font-size: $font-size-small;
   }
 }
 
 .card {
   padding: $space-md;
-  border: 1px solid $color-border;
+  border: 1px solid $color-card-border;
+  border-top: $card-accent-width solid $color-primary;
   border-radius: $radius-md;
   background: $color-card;
+  box-shadow: $shadow-card;
 
   @include up(md) {
     padding: $space-lg;

@@ -1,0 +1,16 @@
+<span class="avatar" role="img" [attr.aria-label]="accessibleName()">
+  @if (initials()) {
+    <span aria-hidden="true">{{ initials() }}</span>
+  } @else if (icon() === 'admin') {
+    <!-- shield -->
+    <svg class="avatar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" />
+    </svg>
+  } @else {
+    <!-- person -->
+    <svg class="avatar__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7H4Z" />
+    </svg>
+  }
+</span>

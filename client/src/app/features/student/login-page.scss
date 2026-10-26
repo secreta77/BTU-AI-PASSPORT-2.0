@@ -56,6 +56,12 @@
   text-decoration: underline;
   cursor: pointer;
 
+  @include hover-only {
+    &:not(:disabled) {
+      color: $color-dark;
+    }
+  }
+
   &:disabled {
     color: $color-text-muted;
     text-decoration: none;
@@ -70,4 +76,14 @@
 
 .notice--success {
   margin: 0 0 $space-md;
+}
+
+// Small link for staff at the end of the page
+.admin-link {
+  margin: $space-lg 0 0;
+  font-size: $font-size-small;
+
+  a {
+    color: $color-primary-text;
+  }
 }

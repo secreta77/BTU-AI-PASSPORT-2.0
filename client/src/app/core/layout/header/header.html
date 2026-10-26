@@ -2,31 +2,95 @@
   <div class="header__inner">
     <a class="header__title" routerLink="/verify">{{ 'header.title' | t: language() }}</a>
 
-    <nav class="header__nav" [attr.aria-label]="'header.title' | t: language()">
-      @if (authService.isLoggedIn()) {
-        <a class="header__link" routerLink="/my-passport">{{
-          'header.myPassport' | t: language()
-        }}</a>
-        <button class="header__link" type="button" (click)="logout()">
-          {{ 'header.logout' | t: language() }}
-        </button>
-      } @else {
-        <a class="header__link" routerLink="/login">{{ 'header.login' | t: language() }}</a>
-      }
-    </nav>
+    <!-- Only visible below the md breakpoint (CSS) -->
+    <button
+      #burger
+      class="header__burger"
+      type="button"
+      aria-controls="header-menu"
+      [attr.aria-expanded]="menuOpen()"
+      [attr.aria-label]="(menuOpen() ? 'header.menuClose' : 'header.menuOpen') | t: language()"
+      (click)="toggleMenu()"
+    >
+      <svg class="header__burger-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        @if (menuOpen()) {
+          <path d="M6 6l12 12M18 6 6 18" />
+        } @else {
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        }
+      </svg>
+    </button>
 
-    <div class="header__lang" role="group" [attr.aria-label]="'lang.label' | t: language()">
-      @for (lang of languages; track lang.code) {
-        <button
-          type="button"
-          class="header__lang-button"
-          [class.header__lang-button--active]="languageService.language() === lang.code"
-          [attr.aria-pressed]="languageService.language() === lang.code"
-          (click)="languageService.setLanguage(lang.code)"
+    <nav
+      #menu
+      id="header-menu"
+      class="header__menu"
+      [class.header__menu--open]="menuOpen()"
+      (click)="onMenuClick($event)"
+      [attr.aria-label]="'header.title' | t: language()"
+    >
+      <div class="header__menu-content">
+        <a
+          class="header__link"
+          routerLink="/verify"
+          routerLinkActive="header__link--active"
+          ariaCurrentWhenActive="page"
+          >{{ 'header.verify' | t: language() }}</a
         >
-          {{ lang.labelKey | t: language() }}
-        </button>
-      }
-    </div>
+
+        <div class="header__lang" role="group" [attr.aria-label]="'lang.label' | t: language()">
+          @for (lang of languages; track lang.code) {
+            <button
+              type="button"
+              class="header__lang-button"
+              [class.header__lang-button--active]="languageService.language() === lang.code"
+              [attr.aria-pressed]="languageService.language() === lang.code"
+              (click)="languageService.setLanguage(lang.code)"
+            >
+              {{ lang.labelKey | t: language() }}
+            </button>
+          }
+        </div>
+
+        <div class="header__account">
+          @if (authService.isLoggedIn()) {
+            <a
+              class="header__avatar-link"
+              routerLink="/my-passport"
+              routerLinkActive="header__avatar-link--active"
+              ariaCurrentWhenActive="page"
+            >
+              <ui-avatar [name]="authService.studentName()" />
+              <span>{{ 'header.myPassport' | t: language() }}</span>
+            </a>
+            <button class="button button--small button--outline" type="button" (click)="logout()">
+              {{ 'header.logout' | t: language() }}
+            </button>
+          } @else if (adminAuthService.isLoggedIn()) {
+            <a
+              class="header__avatar-link"
+              routerLink="/admin"
+              routerLinkActive="header__avatar-link--active"
+              ariaCurrentWhenActive="page"
+            >
+              <!-- decorative: the text next to it already says what the link is -->
+              <ui-avatar icon="admin" aria-hidden="true" />
+              <span>{{ 'header.admin' | t: language() }}</span>
+            </a>
+            <button
+              class="button button--small button--outline"
+              type="button"
+              (click)="adminLogout()"
+            >
+              {{ 'header.logout' | t: language() }}
+            </button>
+          } @else {
+            <a class="button button--small header__login" routerLink="/login">{{
+              'header.login' | t: language()
+            }}</a>
+          }
+        </div>
+      </div>
+    </nav>
   </div>
 </header>

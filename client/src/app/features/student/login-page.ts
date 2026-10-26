@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, exhaustMap, finalize, tap } from 'rxjs';
 import { API_ERROR_CODE, RESEND_COOLDOWN_SECONDS } from '../../core/constants';
 import type { TranslationKey } from '../../core/i18n/ka';
@@ -35,7 +35,7 @@ const VERIFY_ERROR_KEYS: Record<string, TranslationKey> = {
 // Two steps on one page: email -> code. The code stays a string (leading zeros).
 @Component({
   selector: 'app-login-page',
-  imports: [ReactiveFormsModule, TranslatePipe],
+  imports: [ReactiveFormsModule, RouterLink, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './login-page.html',
   styleUrl: './login-page.scss',
