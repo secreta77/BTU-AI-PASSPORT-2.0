@@ -14,6 +14,7 @@ import {
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { createSlowFlag } from '../../core/utils/slow-loading';
 import { FileDrop, Skeleton, StatusBadge } from '@btu/ui';
 import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -72,6 +73,8 @@ export class VerifyPage {
   protected readonly codeControl = new FormControl('', { nonNullable: true });
   protected readonly state = signal<PageState>('idle');
   protected readonly info = signal<VerifyInfo | null>(null);
+  protected readonly isLoading = computed(() => this.state() === 'loading');
+  protected readonly isSlow = createSlowFlag(this.isLoading);
 
   // Blockchain check is skipped in mock mode (mock codes are not on the chain)
   protected readonly showChain = !environment.useMockApi;
