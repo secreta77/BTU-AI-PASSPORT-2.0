@@ -18,6 +18,7 @@ export const en: Translations = {
   'footer.text': 'BTU AI Skills Digital Passport. Hackathon prototype.',
 
   'common.comingSoon': 'Coming soon.',
+  'common.serverWaking': 'The server is waking up. This can take up to 30 seconds.',
 
   'seo.description':
     'Verify a BTU AI Skills Digital Passport by QR or code, anchored on the blockchain.',
@@ -25,6 +26,11 @@ export const en: Translations = {
   'seo.title.login': 'Log in',
   'seo.title.myPassport': 'My passport',
   'seo.title.admin': 'Admin',
+  'seo.title.notFound': 'Page not found',
+
+  'notFound.title': 'Page not found',
+  'notFound.text': 'The address you opened does not exist or has been moved.',
+  'notFound.link': 'Go to passport verification',
 
   'verify.title': 'Verify a passport',
   'verify.codeLabel': 'Verification code',

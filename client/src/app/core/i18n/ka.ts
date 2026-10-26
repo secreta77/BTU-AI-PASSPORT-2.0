@@ -16,6 +16,7 @@ export const ka = {
   'footer.text': 'BTU AI უნარების ციფრული პასპორტი. ჰაკათონის პროტოტიპი.',
 
   'common.comingSoon': 'მალე დაემატება.',
+  'common.serverWaking': 'სერვერი იღვიძებს, ეს შეიძლება 30 წამამდე გაგრძელდეს.',
 
   'seo.description':
     'BTU-ს AI უნარების ციფრული პასპორტის გადამოწმება: QR-ით ან კოდით, ბლოკჩეინზე დამოწმებული.',
@@ -23,6 +24,11 @@ export const ka = {
   'seo.title.login': 'შესვლა',
   'seo.title.myPassport': 'ჩემი პასპორტი',
   'seo.title.admin': 'ადმინისტრირება',
+  'seo.title.notFound': 'გვერდი ვერ მოიძებნა',
+
+  'notFound.title': 'გვერდი ვერ მოიძებნა',
+  'notFound.text': 'მისამართი, რომელიც გახსენით, არ არსებობს ან გადატანილია.',
+  'notFound.link': 'პასპორტის გადამოწმებაზე გადასვლა',
 
   'verify.title': 'პასპორტის გადამოწმება',
   'verify.codeLabel': 'ვერიფიკაციის კოდი',

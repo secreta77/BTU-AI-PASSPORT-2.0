@@ -27,6 +27,11 @@ export const LANGUAGE = {
 export const DEFAULT_LANGUAGE = LANGUAGE.KA;
 export const LANGUAGE_STORAGE_KEY = 'btu-lang';
 
+// Public address of the site (Netlify). Used for og:url and og:image. index.html repeats it
+// because social crawlers do not run JavaScript.
+export const SITE_URL = 'https://btu-ai-passport.netlify.app';
+export const OG_IMAGE_URL = `${SITE_URL}/assets/og-image.png`;
+
 // Block explorer transaction page (Sepolia testnet, verify page link)
 export const TX_EXPLORER_URL = 'https://sepolia.etherscan.io/tx/';
 

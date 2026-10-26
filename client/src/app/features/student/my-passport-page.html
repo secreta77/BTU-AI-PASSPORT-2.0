@@ -5,6 +5,9 @@
   @if (state() === 'loading') {
     <span class="sr-only">{{ 'myPassport.loading' | t: language() }}</span>
   }
+  @if (isSlow()) {
+    <p class="muted">{{ 'common.serverWaking' | t: language() }}</p>
+  }
 </div>
 
 @switch (state()) {
