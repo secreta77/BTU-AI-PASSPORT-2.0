@@ -1,10 +1,25 @@
 # BTU AI Skills Digital Passport
 
-Hackathon MVP: BTU adds verified skills in Google Sheets, the system issues a PDF passport
-per student, anchors its hash on a blockchain, and anyone can verify it without login.
+BTU ამატებს დადასტურებულ უნარებს Google Sheet-ში, სისტემა თითო სტუდენტს გასცემს PDF პასპორტს, მის ჰეშს ინახავს ბლოკჩეინზე (Sepolia), ხოლო ნებისმიერს შეუძლია პასპორტის გადამოწმება შესვლის გარეშე.
+
+**ცოცხალი საიტი:** https://btu-ai-passport.netlify.app
 
 ## Flow
 Google Sheets → sync → validate → PDF → SHA-256 → blockchain → DB ledger → write Q–T back to Sheet
+
+## ტექნოლოგიები
+- Backend: Node.js, Express
+- ბაზა: PostgreSQL (Supabase), PDF-ების Storage
+- Google Sheets API (Service Account)
+- PDF: `pdf-lib`
+- ბლოკჩეინი: Solidity, Sepolia, `ethers` v6
+- Frontend: Angular 21, SCSS
+- ჰოსტინგი: Render (API), Netlify (საიტი)
+
+## დოკუმენტაცია
+- [ტექნიკური მიმოხილვა](docs/technical-overview.md): არქიტექტურა, მონაცემთა გზა, ვერიფიკაცია, მასშტაბირება
+- [API](docs/api.md)
+- [დემო სცენარები](docs/demo-scenarios.md)
 
 ## Setup
 1. `cd server && npm install`
@@ -18,9 +33,6 @@ Google Sheets → sync → validate → PDF → SHA-256 → blockchain → DB le
 - `server/scripts/` demo helpers (`tamper-pdf.js`, `check-sheet.js`)
 - `client/` Angular app
 - `docs/` task, demo scenarios, design
-
-## Demo scenarios
-See `docs/demo-scenarios.md`.
 
 ## Roles
 See `CLAUDE.md`.
