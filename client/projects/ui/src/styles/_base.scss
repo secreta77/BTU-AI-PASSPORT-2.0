@@ -1,5 +1,6 @@
 // Global reset and base element styles. Component styles stay in the components.
 @use 'variables' as *;
+@use 'mixins' as *;
 
 *,
 *::before,
@@ -37,6 +38,11 @@ p {
 
 a {
   color: $color-primary-text;
+  text-underline-offset: 0.15em;
+
+  @include hover-only {
+    text-decoration-thickness: 2px;
+  }
 }
 
 img,

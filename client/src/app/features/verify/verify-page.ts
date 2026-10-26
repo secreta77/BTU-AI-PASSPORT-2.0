@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { FileDrop, Skeleton, StatusBadge } from '@btu/ui';
 import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -22,6 +22,7 @@ import { LanguageService } from '../../core/i18n/language.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ChainCheck, VerifyInfo, VerifyResult } from '../../core/models/verify.model';
 import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ChainVerifyService } from '../../core/services/chain-verify.service';
 import { HashService } from '../../core/services/hash.service';
 import { MOCK_DOC_HASHES } from '../../core/services/mock-verify.data';
@@ -43,6 +44,7 @@ interface LoadResult {
   selector: 'app-verify-page',
   imports: [
     ReactiveFormsModule,
+    RouterLink,
     DatePipe,
     NgOptimizedImage,
     TranslatePipe,
@@ -57,6 +59,7 @@ interface LoadResult {
 export class VerifyPage {
   protected readonly language = inject(LanguageService).language;
 
+  protected readonly authService = inject(AuthService);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly chainVerify = inject(ChainVerifyService);

@@ -27,6 +27,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { getApiErrorCode } from '../../core/models/api-error.model';
 import { Passport } from '../../core/models/passport.model';
 import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/services/auth.service';
 import { FileDownloadService } from '../../core/services/file-download.service';
 
 type PageState = 'loading' | 'ready' | 'error';
@@ -50,6 +51,7 @@ export class MyPassportPage {
   protected readonly language = inject(LanguageService).language;
 
   private readonly api = inject(ApiService);
+  private readonly authService = inject(AuthService);
   private readonly fileDownload = inject(FileDownloadService);
 
   // toSignal subscribes and unsubscribes by itself; errors become part of the value
@@ -120,6 +122,9 @@ export class MyPassportPage {
 
   private loadPassport(): Observable<LoadResult> {
     return this.api.getMyPassport().pipe(
+      tap((passport) =>
+        this.authService.setStudentName(`${passport.firstName} ${passport.lastName}`),
+      ),
       map((passport): LoadResult => ({ state: 'ready', passport, errorKey: GENERIC_ERROR_KEY })),
       catchError((error) => {
         const notIssued = getApiErrorCode(error) === API_ERROR_CODE.PASSPORT_NOT_FOUND;

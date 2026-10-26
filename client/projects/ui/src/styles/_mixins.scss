@@ -1,5 +1,6 @@
 // Mobile-first: write the small-screen style first, then widen with up().
 @use 'sass:map';
+@use 'variables' as *;
 
 // The only place with breakpoints
 $breakpoints: (
@@ -16,5 +17,32 @@ $breakpoints: (
   }
   @media (min-width: $width) {
     @content;
+  }
+}
+
+// Hover only on devices that really hover: on phones it would "stick" after a tap
+@mixin hover-only {
+  @media (hover: hover) {
+    &:hover {
+      @content;
+    }
+  }
+}
+
+// Light "squeeze" while pressed
+@mixin press {
+  &:active:not(:disabled) {
+    transform: scale(#{$press-scale});
+  }
+}
+
+// Smooth state changes; no animation for people who ask for less motion
+@mixin smooth($properties...) {
+  transition: none;
+
+  @media (prefers-reduced-motion: no-preference) {
+    transition-property: $properties;
+    transition-duration: $transition-duration;
+    transition-timing-function: ease-out;
   }
 }

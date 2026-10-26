@@ -8,6 +8,11 @@ export const ka = {
   'header.login': 'შესვლა',
   'header.myPassport': 'ჩემი პასპორტი',
   'header.logout': 'გასვლა',
+  'header.verify': 'გადამოწმება',
+  'header.menuOpen': 'მენიუს გახსნა',
+  'header.menuClose': 'მენიუს დახურვა',
+  'verify.backToPassport': '← ჩემი პასპორტი',
+  'header.admin': 'ადმინისტრირება',
   'footer.text': 'BTU AI უნარების ციფრული პასპორტი. ჰაკათონის პროტოტიპი.',
 
   'common.comingSoon': 'მალე დაემატება.',
@@ -72,6 +77,7 @@ export const ka = {
   'status.latest': 'უახლესი ვერსია',
   'status.outdated': 'მოძველებული ვერსია',
 
+  'login.adminLink': 'BTU-ს თანამშრომელი ხართ? ადმინისტრირება →',
   'login.title': 'შესვლა სტუდენტებისთვის',
   'login.subtitle': 'შეიყვანეთ ელფოსტა და მიიღებთ ერთჯერად კოდს.',
   'login.email.label': 'ელფოსტა',

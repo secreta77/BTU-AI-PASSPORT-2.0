@@ -13,6 +13,12 @@
   }
 }
 
+// Link back to the student's own passport (only shown when logged in)
+.back-link {
+  display: inline-block;
+  margin-bottom: $space-md;
+}
+
 .muted {
   color: $color-text-muted;
 }

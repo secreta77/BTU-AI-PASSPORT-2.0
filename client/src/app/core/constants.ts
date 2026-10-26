@@ -62,6 +62,7 @@ export const AUTH_STORAGE_KEY = 'btu-student-session';
 export const STUDENT_API_PATH = '/student/';
 
 // Admin key (sessionStorage: gone when the tab is closed). Never in code or environment files.
+export const STUDENT_NAME_STORAGE_KEY = 'btu-student-name';
 export const ADMIN_KEY_STORAGE_KEY = 'btu-admin-key';
 export const ADMIN_KEY_HEADER = 'X-Admin-Key';
 

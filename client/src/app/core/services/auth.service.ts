@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { AUTH_STORAGE_KEY } from '../constants';
+import { AUTH_STORAGE_KEY, STUDENT_NAME_STORAGE_KEY } from '../constants';
 
 interface StudentSession {
   token: string;
@@ -10,6 +10,9 @@ interface StudentSession {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly session = signal<StudentSession | null>(this.loadSession());
+  // Full name for the header avatar. The passport page sets it after it loaded the passport,
+  // so the header needs no extra request. Kept in sessionStorage for page reloads.
+  readonly studentName = signal<string | null>(this.loadStudentName());
   private expiryTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
@@ -34,11 +37,22 @@ export class AuthService {
     this.scheduleExpiry();
   }
 
+  setStudentName(fullName: string): void {
+    this.studentName.set(fullName);
+    try {
+      sessionStorage.setItem(STUDENT_NAME_STORAGE_KEY, fullName);
+    } catch {
+      // the name is only a convenience: the avatar falls back to an icon
+    }
+  }
+
   logout(): void {
     clearTimeout(this.expiryTimer);
     this.session.set(null);
+    this.studentName.set(null);
     try {
       sessionStorage.removeItem(AUTH_STORAGE_KEY);
+      sessionStorage.removeItem(STUDENT_NAME_STORAGE_KEY);
     } catch {
       // storage can be blocked (private window): the signal is already cleared
     }
@@ -64,6 +78,14 @@ export class AuthService {
       sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
     } catch {
       // without storage the student stays logged in until the page is reloaded
+    }
+  }
+
+  private loadStudentName(): string | null {
+    try {
+      return sessionStorage.getItem(STUDENT_NAME_STORAGE_KEY) || null;
+    } catch {
+      return null;
     }
   }
 

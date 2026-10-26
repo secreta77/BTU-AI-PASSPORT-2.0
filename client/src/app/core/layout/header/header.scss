@@ -1,18 +1,23 @@
 @use 'variables' as *;
 @use 'mixins' as *;
 
+// One shared transition for every interactive element in the header
+%interactive {
+  @include smooth(background-color, border-color, box-shadow, transform);
+}
+
 .header {
   background: $color-dark;
   border-bottom: 4px solid $color-primary;
 }
 
-// wrap lets the language switch go under the title on very narrow screens (320px)
+// Small screens: title + burger in one row, the menu panel below
 .header__inner {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: $space-xs $space-md;
+  gap: 0 $space-md;
   width: 100%;
   max-width: $content-max-width;
   margin-inline: auto;
@@ -20,35 +25,164 @@
 }
 
 .header__title {
+  flex: 1 1 0;
   min-width: 0;
   color: $color-white;
   font-weight: 700;
   text-decoration: none;
 }
 
-// Uppercase only for English: text-transform would turn Georgian into capitals
+// Uppercase only for English (Georgian would turn into capitals)
 .header__title:lang(en) {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.header__nav {
+.header__burger {
+  @extend %interactive;
+
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 1px solid $color-text-muted;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $color-white;
+  cursor: pointer;
+
+  @include hover-only {
+    background: $color-hover-on-dark;
+  }
+
+  @include press;
+}
+
+.header__burger-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+// The panel opens by animating the grid row from 0fr to 1fr (CSS only, no fixed height).
+// visibility keeps the closed links out of the tab order; on close it flips after the animation.
+.header__menu {
+  display: grid;
+  grid-template-rows: 0fr;
+  flex-basis: 100%;
+  visibility: hidden;
+  transition: none;
+
+  @media (prefers-reduced-motion: no-preference) {
+    transition:
+      grid-template-rows $transition-duration ease-out,
+      visibility 0s linear $transition-duration;
+  }
+
+  &--open {
+    grid-template-rows: 1fr;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+}
+
+// min-height 0 + overflow hidden let the row shrink to nothing
+.header__menu-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $space-sm;
+  min-height: 0;
+  padding-inline: $space-xxs;
+  overflow: hidden;
+
+  // Margins (not padding) so the closed panel shrinks to exactly 0 height
+  > :first-child {
+    margin-top: $space-sm;
+  }
+
+  > :last-child {
+    margin-bottom: $space-xxs;
+  }
+}
+
+.header__account {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: $space-xs $space-md;
 }
 
-// Same look for the links and the logout button
+// Nav link: orange underline marks the current page
 .header__link {
-  padding: 0;
-  border: 0;
-  background: none;
+  @extend %interactive;
+
+  display: inline-flex;
+  padding: $space-xxs $space-xs;
+  border-bottom: 2px solid transparent;
+  border-radius: $radius-md $radius-md 0 0;
   color: $color-white;
-  font: inherit;
   font-size: $font-size-small;
-  text-decoration: underline;
-  cursor: pointer;
+  text-decoration: none;
+
+  @include hover-only {
+    background: $color-hover-on-dark;
+  }
+
+  @include press;
+
+  &--active {
+    border-bottom-color: $color-primary;
+    font-weight: 700;
+  }
+}
+
+// Login link looks like a button: no underline
+.header__login {
+  text-decoration: none;
+}
+
+// On the dark header the outline button must be white
+.header .button--outline {
+  color: $color-white;
+
+  @include hover-only {
+    &:not(:disabled) {
+      background: $color-hover-on-dark;
+    }
+  }
+}
+
+// Pill link: avatar + text; ring on hover and for the current page
+.header__avatar-link {
+  @extend %interactive;
+
+  display: inline-flex;
+  align-items: center;
+  gap: $space-xs;
+  min-width: 0;
+  padding: $space-xxs $space-sm $space-xxs $space-xxs;
+  border-radius: $radius-pill;
+  color: $color-white;
+  font-size: $font-size-small;
+  text-decoration: none;
+
+  @include hover-only {
+    box-shadow: 0 0 0 2px $color-white;
+  }
+
+  @include press;
+
+  &--active {
+    box-shadow: 0 0 0 2px $color-primary;
+    font-weight: 700;
+  }
 }
 
 .header__lang {
@@ -58,6 +192,8 @@
 }
 
 .header__lang-button {
+  @extend %interactive;
+
   padding: $space-xxs $space-xs;
   border: 1px solid $color-text-muted;
   border-radius: $radius-md;
@@ -66,6 +202,14 @@
   font: inherit;
   font-size: $font-size-small;
   cursor: pointer;
+
+  @include hover-only {
+    &:not(.header__lang-button--active) {
+      background: $color-hover-on-dark;
+    }
+  }
+
+  @include press;
 }
 
 .header__lang-button--active {
@@ -75,17 +219,46 @@
   font-weight: 700;
 }
 
-// The header is dark: the darker orange outline would be hard to see on it
+// Orange focus ring: the dark one is hard to see on the dark header
 .header :focus-visible {
   outline-color: $color-primary;
 }
 
 @include up(md) {
   .header__inner {
+    flex-wrap: nowrap;
+    gap: $space-xs $space-md;
     padding-inline: $space-lg;
   }
 
   .header__title {
+    flex: 0 1 auto;
     font-size: $font-size-large;
+  }
+
+  .header__burger {
+    display: none;
+  }
+
+  // Normal header: the menu is always there, in one row
+  .header__menu {
+    display: block;
+    flex: 1 1 auto;
+    visibility: visible;
+    transition: none;
+  }
+
+  .header__menu-content {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $space-xs $space-md;
+    overflow: visible;
+
+    > :first-child,
+    > :last-child {
+      margin: 0;
+    }
   }
 }
