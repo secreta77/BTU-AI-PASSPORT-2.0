@@ -35,6 +35,13 @@ export const SHEET_SYNC_STATUS = {
   NOT_SYNCED: 'NOT SYNCED',
 };
 
+// Column U "Verification Status" (task.md: only CONFIRMED skills go into the passport)
+export const VERIFICATION_STATUS = {
+  CONFIRMED: 'CONFIRMED',
+  PENDING: 'PENDING',
+  REJECTED: 'REJECTED',
+};
+
 export const VERIFY_RESULT = {
   AUTHENTIC_LATEST: 'AUTHENTIC_LATEST',
   AUTHENTIC_OUTDATED: 'AUTHENTIC_OUTDATED',

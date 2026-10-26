@@ -491,6 +491,28 @@ await scenario('progress is reported line by line for a person watching (npm run
   assert(lines.some((line) => line.includes('V1 issued')));
 });
 
+await scenario('status column: only CONFIRMED rows are issued, PENDING/REJECTED are logged and the Sheet is not written for them', async () => {
+  const confirmed = makeRow({ verificationStatus: 'CONFIRMED' });
+  const pending = makeRow({ studentId: 'BTU-T-0102', email: 'btu-t-0102@example.org', verificationStatus: 'PENDING' });
+  const rejected = makeRow({ studentId: 'BTU-T-0103', email: 'btu-t-0103@example.org', verificationStatus: 'REJECTED' });
+  const missing = makeRow({ studentId: 'BTU-T-0104', email: 'btu-t-0104@example.org', verificationStatus: null });
+  const world = createWorld({ rows: [confirmed, pending, rejected, missing] });
+
+  const { summary, problems } = await runSync({}, world.deps);
+
+  assert.deepEqual(world.issueCalls, ['BTU-T-0101']);
+  assert.equal(summary.versionsIssued, 1);
+  assert.equal(summary.errors, 1);
+  assert(problems.some((text) => text.includes(`Row ${missing.sheetRow}: status missing`)));
+  const writtenRows = world.sheetWrites.flatMap((write) => [...write.syncRows, ...write.passportRows]).map((item) => item.sheetRow);
+  assert(!writtenRows.includes(pending.sheetRow) && !writtenRows.includes(rejected.sheetRow), 'skipped rows must not be written');
+  assert(writtenRows.includes(missing.sheetRow), 'the missing status is shown in column T');
+  const infoMessages = world.state.log.filter((entry) => entry.level === 'info').map((entry) => entry.message);
+  assert(infoMessages.includes(`Row ${pending.sheetRow}: skipped (PENDING)`));
+  assert(infoMessages.includes(`Row ${rejected.sheetRow}: skipped (REJECTED)`));
+  assert(!world.state.students.has('BTU-T-0102'), 'a PENDING row creates no student');
+});
+
 function pickStudent(row) {
   return {
     studentId: row.studentId,
