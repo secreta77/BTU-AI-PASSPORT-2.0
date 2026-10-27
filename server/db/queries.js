@@ -4,7 +4,7 @@
 // - `db` is the LAST argument. It is the shared `pool` or the client of a running transaction.
 // - Rows come back as camelCase objects. Names follow sheets/reader.js (`studentStatus`, `firstIssued`, ...),
 //   so one field has one name from the Sheet to the DB to the PDF (see docs/api.md).
-import { OTP, VERSION_STATUS } from '../shared/constants.js';
+import { MANUAL_RECORD_PREFIX, OTP, VERSION_STATUS } from '../shared/constants.js';
 import { pool } from './pool.js';
 
 // "first_name" -> "firstName"
@@ -156,6 +156,54 @@ export async function insertSkillAwards(awards, db = pool) {
     ],
   );
   return rowCount;
+}
+
+// ---------- Manual award (POST /api/admin/awards) ----------
+
+// Any number: all manual awards take the same advisory lock, so two of them at once get different Record IDs
+const MANUAL_AWARD_LOCK_ID = 7301;
+
+// One skill, or null if there is no such skill (the route answers 404 SKILL_NOT_FOUND)
+export async function findSkillById(skillId, db = pool) {
+  const { rows } = await db.query(
+    'SELECT skill_id, name, category, description FROM skills WHERE skill_id = $1',
+    [skillId],
+  );
+  return rows.length === 0 ? null : toCamelCase(rows[0]);
+}
+
+// Saves one award made by hand with the next Record ID (MAN-0001, MAN-0002 ...). It has no version yet: the next sync
+// puts it into the student's next passport version, like an award from the Sheet. Returns the new Record ID, or null
+// when the student already has this skill (one skill per student, whatever the source, Decision 10).
+// Finding the next number and saving happen in ONE transaction under an advisory lock, so two admins at the same
+// moment cannot get the same number. One info line in sync_log tells the history page what happened.
+// award: { studentId, skillId, dateEarned, earnedThrough }. `run` is replaceable for tests.
+export async function insertManualAward({ studentId, skillId, dateEarned, earnedThrough }, run = runInTransaction) {
+  return run(async (client) => {
+    await client.query('SELECT pg_advisory_xact_lock($1)', [MANUAL_AWARD_LOCK_ID]);
+    // 'MAN-' and 5 (the first digit) are written out: this file has no string-built SQL. Same prefix as MANUAL_RECORD_PREFIX.
+    const { rows } = await client.query(
+      `SELECT COALESCE(MAX(substring(record_id FROM 5)::int), 0) AS last_number
+       FROM skill_awards
+       WHERE record_id ~ '^MAN-[0-9]+$'`,
+    );
+    const recordId = `${MANUAL_RECORD_PREFIX}${String(rows[0].last_number + 1).padStart(4, '0')}`;
+
+    const { rowCount } = await client.query(
+      `INSERT INTO skill_awards (record_id, student_id, skill_id, earned_through, date_earned)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (student_id, skill_id) DO NOTHING`,
+      [recordId, studentId, skillId, earnedThrough, dateEarned],
+    );
+    if (rowCount === 0) {
+      return null;
+    }
+    await client.query(
+      `INSERT INTO sync_log (record_id, student_id, level, message) VALUES ($1, $2, 'info', $3)`,
+      [recordId, studentId, `Manual award ${recordId}: ${studentId} got skill ${skillId}`],
+    );
+    return recordId;
+  });
 }
 
 // Writes log entries. An error or duplicate with the same record_id and message is stored only once
@@ -390,6 +438,14 @@ export async function listPassports(db = pool) {
      LEFT JOIN passport_versions v ON v.passport_id = p.passport_id AND v.status = $1
      ORDER BY p.passport_id`,
     [VERSION_STATUS.LATEST],
+  );
+  return rows.map(toCamelCase);
+}
+
+// All skills for the dropdown of the admin "add skill" form, sorted by Skill ID. No paging (16 skills).
+export async function listSkills(db = pool) {
+  const { rows } = await db.query(
+    'SELECT skill_id, name, category, description FROM skills ORDER BY skill_id',
   );
   return rows.map(toCamelCase);
 }

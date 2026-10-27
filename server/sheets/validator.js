@@ -75,7 +75,7 @@ function findFirstProblem(row) {
 }
 
 // Checks the YYYY-MM-DD format and that the date exists (2026-02-30 is rejected)
-function isRealDate(text) {
+export function isRealDate(text) {
   if (!DATE_PATTERN.test(text)) return false;
   const date = new Date(`${text}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text;
