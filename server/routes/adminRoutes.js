@@ -12,6 +12,7 @@ import {
   listSkills,
 } from '../db/queries.js';
 import { AppError } from '../middleware/appError.js';
+import { describeCharacter, findUnprintableCharacter } from '../pdf/printableText.js';
 import { isRealDate } from '../sheets/validator.js';
 import { DATE_PATTERN, EARNED_THROUGH_MAX_LENGTH, ERROR_CODE, ID_PATTERN } from '../shared/constants.js';
 import { downloadPdf } from '../storage/storageService.js';
@@ -181,6 +182,11 @@ function readEarnedThrough(value) {
   const text = value.trim();
   if (text.length > EARNED_THROUGH_MAX_LENGTH) {
     throw invalidField('earnedThrough', `must be at most ${EARNED_THROUGH_MAX_LENGTH} characters`);
+  }
+  // Only what the PDF font can print (Latin letters, digits, usual punctuation). The form checks the same.
+  const unprintable = findUnprintableCharacter(text);
+  if (unprintable !== null) {
+    throw invalidField('earnedThrough', `can only contain Latin letters, digits and common punctuation (found ${describeCharacter(unprintable)})`);
   }
   return text === '' ? null : text;
 }

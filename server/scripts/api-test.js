@@ -781,6 +781,15 @@ await scenario('admin awards: dateEarned of today and of tomorrow (UTC) is accep
   assert.equal(insertCalls(), insertsBefore, 'a future date saves nothing');
 });
 
+await scenario('admin awards: earnedThrough with accents and typographic punctuation is accepted (what the PDF font can print)', async () => {
+  const text = 'Caf\u00e9 \u2013 \u201cData\u201d & AI: BTU Classroom, 2026!';
+  const result = await postAward(validAward({ studentId: 'BTU-T-0002', skillId: 'SKL-004', earnedThrough: text }));
+  assert.equal(result.status, 201, result.text);
+  assert.equal(result.json.earnedThrough, text);
+  await finishFakeSync();
+  adminWorld.awards.pop(); // the fake database forgets it again
+});
+
 await scenario('admin awards: the same student and skill twice is 409, nothing is saved and no sync starts', async () => {
   const runsBefore = syncWorld.runs.length;
   const savedBefore = adminWorld.awards.length;
@@ -815,6 +824,8 @@ await scenario('admin awards: a missing or wrong field is 400 INVALID_REQUEST th
     ['dateEarned is in the future', { dateEarned: '2026-10-29' }, /dateEarned must not be in the future/],
     ['earnedThrough is a number', { earnedThrough: 5 }, /earnedThrough/],
     ['earnedThrough is 121 characters', { earnedThrough: 'x'.repeat(121) }, /earnedThrough.*120/],
+    ['earnedThrough is Georgian', { earnedThrough: 'BTU \u10d9\u10da\u10d0\u10e1\u10e0\u10e3\u10db\u10d8' }, /^earnedThrough can only contain Latin letters/],
+    ['earnedThrough has an emoji', { earnedThrough: 'Course \u{1F393}' }, /^earnedThrough can only contain Latin letters.*U\+1F393/u],
   ];
   for (const [name, changes, pattern] of cases) {
     const result = await postAward(validAward(changes));
