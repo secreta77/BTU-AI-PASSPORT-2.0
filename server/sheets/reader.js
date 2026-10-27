@@ -187,21 +187,27 @@ function rowsFromMatrix(matrix) {
   }
 
   // Without this column the field is left out of the rows (undefined), so "no column" differs from "empty cell" (null)
-  const hasVerificationColumn = isVerificationHeader(matrix[headerIndex][VERIFICATION_COLUMN_INDEX]);
+  const verificationHeader = matrix[headerIndex][VERIFICATION_COLUMN_INDEX];
+  const hasVerificationColumn = isVerificationHeader(verificationHeader);
 
   const rows = [];
   for (let index = headerIndex + 1; index < matrix.length; index++) {
     const row = cellsToObject(matrix[index], index + 1);
-    if (hasVerificationColumn) {
-      row.verificationStatus = row.verificationStatus?.toUpperCase() ?? null; // "confirmed " counts as CONFIRMED
-    } else {
-      delete row.verificationStatus;
-    }
 
     // Everything below this marker is documentation, not data
     if (isNotesRow(row)) break;
     // Empty rows are skipped, but they do not stop reading
     if (isEmptyRow(row)) continue;
+
+    if (hasVerificationColumn) {
+      row.verificationStatus = row.verificationStatus?.toUpperCase() ?? null; // "confirmed " counts as CONFIRMED
+    } else if (row.verificationStatus === null) {
+      delete row.verificationStatus; // an old Sheet without the column: the filter stays off
+    } else {
+      // A status is written, but the header does not match (a typo). Stop: otherwise PENDING rows would be issued.
+      throw new Error(`Row ${row.sheetRow} has "${row.verificationStatus}" in column U, but the header of column U is `
+        + `${verificationHeader === null ? 'empty' : `"${verificationHeader}"`}. Name it "Verification Status".`);
+    }
 
     rows.push(row);
   }

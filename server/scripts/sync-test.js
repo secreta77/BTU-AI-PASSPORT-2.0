@@ -8,7 +8,7 @@ import { writeSheetUpdates } from '../sheets/writer.js';
 import { readRowsFromXlsx, rowsFromGoogleResponse } from '../sheets/reader.js';
 import { validateRows } from '../sheets/validator.js';
 import { planRows, studentSkillKey } from '../sync/rowPlanner.js';
-import { filterByVerificationStatus } from '../sync/statusFilter.js';
+import { filterByVerificationStatus, sheetHasVerificationColumn } from '../sync/statusFilter.js';
 import { buildSheetUpdates } from '../sync/sheetUpdates.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -469,6 +469,24 @@ await scenario('reader: header present but cell empty gives null; no header give
   assert.equal(withColumn.verificationStatus, null);
   const [withoutColumn] = rowsFromGoogleResponse({ range: "'Passport Skill Records'!A1:U2", values: [HEADER_CELLS, body] });
   assert(!('verificationStatus' in withoutColumn));
+});
+
+await scenario('reader: a status in column U under a misspelled header is an error, not a silent switch-off', async () => {
+  const body = [...dataCells, 'SKL-001', 'N', 'AI Skill', '', 'D', '2026-09-12', '', '', '', '', 'PENDING'];
+  assert.throws(
+    () => rowsFromGoogleResponse({ range: "'Passport Skill Records'!A1:U2", values: [[...HEADER_CELLS, 'Verificaton Status'], body] }),
+    /column U.*"Verificaton Status".*Verification Status/s,
+  );
+  assert.throws(
+    () => rowsFromGoogleResponse({ range: "'Passport Skill Records'!A1:U2", values: [HEADER_CELLS, body] }),
+    /header of column U is empty/,
+  );
+});
+
+await scenario('sheetHasVerificationColumn: false only when there are rows and none has the field', () => {
+  assert.equal(sheetHasVerificationColumn([]), true);
+  assert.equal(sheetHasVerificationColumn([{ sheetRow: 2 }]), false);
+  assert.equal(sheetHasVerificationColumn([{ sheetRow: 2, verificationStatus: null }]), true);
 });
 
 await scenario('reader: the real test xlsx has no status column, so nothing changes for it', async () => {

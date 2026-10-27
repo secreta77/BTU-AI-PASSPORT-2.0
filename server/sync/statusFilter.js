@@ -3,10 +3,15 @@
 // and not reported as an error.
 import { SHEET_SYNC_STATUS, VERIFICATION_STATUS } from '../shared/constants.js';
 
+// false when the Sheet has rows but no "Verification Status" column: then the filter is off and every row counts as CONFIRMED
+export function sheetHasVerificationColumn(rows) {
+  return rows.length === 0 || rows.some((row) => row.verificationStatus !== undefined);
+}
+
 // rows: all rows from the reader. The reader leaves `verificationStatus` out (undefined) when the Sheet has no such
 // column, and sets null for an empty cell. Returns:
 //   rows:    rows to process (go on to the validator)
-//   skipped: info texts for the log [{ sheetRow, recordId, studentId, message }]
+//   skipped: PENDING / REJECTED rows, only counted in the sync summary [{ sheetRow, recordId, studentId, message }]
 //   errors:  rows with a missing or unknown status [{ sheetRow, recordId, studentId, message }] (shown in column T)
 //   untouchedRows: Set of sheetRow numbers the Sheet write-back must not change (PENDING / REJECTED)
 export function filterByVerificationStatus(rows) {

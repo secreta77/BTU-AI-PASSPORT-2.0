@@ -508,8 +508,9 @@ await scenario('status column: only CONFIRMED rows are issued, PENDING/REJECTED 
   assert(!writtenRows.includes(pending.sheetRow) && !writtenRows.includes(rejected.sheetRow), 'skipped rows must not be written');
   assert(writtenRows.includes(missing.sheetRow), 'the missing status is shown in column T');
   const infoMessages = world.state.log.filter((entry) => entry.level === 'info').map((entry) => entry.message);
-  assert(infoMessages.includes(`Row ${pending.sheetRow}: skipped (PENDING)`));
-  assert(infoMessages.includes(`Row ${rejected.sheetRow}: skipped (REJECTED)`));
+  assert.equal(summary.skipped, 2);
+  assert(infoMessages.at(-1).endsWith(', 2 skipped (not CONFIRMED)'), 'the final info line counts the skipped rows');
+  assert(!infoMessages.some((message) => message.includes('skipped (PENDING)')), 'no log line per skipped row');
   assert(!world.state.students.has('BTU-T-0102'), 'a PENDING row creates no student');
 });
 

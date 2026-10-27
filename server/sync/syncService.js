@@ -50,7 +50,7 @@ export async function runSync({ bootstrap = false, report = () => {} } = {}, dep
   report(`Plan: ${plan.newStudents.length} new students, ${plan.newAwards.length} new awards, `
     + `${plan.duplicates.length} duplicates, ${plan.errors.length + validationErrors.length} errors`);
 
-  await savePlan(plan, validationErrors, statusCheck.skipped, bootstrap, deps);
+  await savePlan(plan, validationErrors, bootstrap, deps);
   const { versionsIssued, failures } = await issuePending(deps, report);
 
   const rowByRecordId = firstRowOfEachRecord(valid);
@@ -68,6 +68,9 @@ export async function runSync({ bootstrap = false, report = () => {} } = {}, dep
     versionsIssued,
     duplicates: plan.duplicates.length,
     errors: validationErrors.length + plan.errors.length + failures.length + (sheetProblem ? 1 : 0),
+    // Only when there are some: the number of PENDING / REJECTED rows. No log line per row, because info lines are
+    // not deduplicated and a PENDING row would add a new line on every sync.
+    ...(statusCheck.skipped.length > 0 ? { skipped: statusCheck.skipped.length } : {}),
   };
   await logEnd(summary, failures, sheetProblem, deps);
   return { summary, problems };
@@ -97,14 +100,13 @@ async function loadKnown(valid, db) {
 
 // ---------- Step 4: save the plan in ONE transaction (all or nothing) ----------
 
-async function savePlan(plan, validationErrors, skipped, bootstrap, deps) {
+async function savePlan(plan, validationErrors, bootstrap, deps) {
   const { db } = deps;
   const today = deps.now().toISOString().slice(0, 10); // UTC date, so it does not depend on the server timezone
   const logEntries = [
     ...validationErrors.map((issue) => toLogEntry(issue, SYNC_LOG_LEVEL.ERROR)),
     ...plan.errors.map((issue) => toLogEntry(issue, SYNC_LOG_LEVEL.ERROR)),
     ...plan.duplicates.map((issue) => toLogEntry(issue, SYNC_LOG_LEVEL.DUPLICATE)),
-    ...skipped.map((issue) => toLogEntry(issue, SYNC_LOG_LEVEL.INFO)),
   ];
 
   await db.runInTransaction(async (client) => {
@@ -265,7 +267,8 @@ async function logEnd(summary, failures, sheetProblem, deps) {
 
 export function formatSummary(summary) {
   return `Sync finished: ${summary.rowsRead} rows read, ${summary.newAwards} new awards, `
-    + `${summary.versionsIssued} versions issued, ${summary.duplicates} duplicates, ${summary.errors} errors`;
+    + `${summary.versionsIssued} versions issued, ${summary.duplicates} duplicates, ${summary.errors} errors`
+    + (summary.skipped > 0 ? `, ${summary.skipped} skipped (not CONFIRMED)` : '');
 }
 
 function unique(values) {
