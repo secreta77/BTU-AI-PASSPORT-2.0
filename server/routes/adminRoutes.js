@@ -27,6 +27,7 @@ const defaultDeps = {
   findStudentsByIds,
   insertManualAward,
   syncRunner, // the same runner as POST /api/admin/sync: one sync at a time
+  now: () => new Date(), // tests give a fixed clock
   findPassportsByIds,
   findVersionsByPassport,
   findVersionPdfPath,
@@ -71,7 +72,7 @@ export function createAdminRouter(deps = {}) {
 
   // POST /api/admin/awards   (one skill added by hand; a sync starts at once and makes the next passport version)
   router.post('/awards', async (req, res) => {
-    const award = readAwardBody(req.body);
+    const award = readAwardBody(req.body, dependencies.now());
 
     const [student] = await dependencies.findStudentsByIds([award.studentId]);
     if (student === undefined) {
@@ -131,7 +132,7 @@ export function createAdminRouter(deps = {}) {
 }
 
 // The body of POST /api/admin/awards -> { studentId, skillId, dateEarned, earnedThrough } or 400 INVALID_REQUEST that names the field
-function readAwardBody(body) {
+function readAwardBody(body, now) {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     throw invalidField('body', 'must be a JSON object');
   }
@@ -148,7 +149,17 @@ function readAwardBody(body) {
   if (!DATE_PATTERN.test(dateEarned) || !isRealDate(dateEarned)) {
     throw invalidField('dateEarned', 'must be a real date as YYYY-MM-DD');
   }
+  if (dateEarned > latestAllowedDate(now)) {
+    throw invalidField('dateEarned', 'must not be in the future');
+  }
   return { studentId, skillId, dateEarned, earnedThrough: readEarnedThrough(body.earnedThrough) };
+}
+
+// A skill cannot be earned in the future. The latest date accepted is tomorrow by the UTC clock: an admin whose day
+// has already turned (Georgia is UTC+4, the furthest zone is UTC+14) must not be refused for today's date.
+function latestAllowedDate(now) {
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  return tomorrow.toISOString().slice(0, 10);
 }
 
 function readRequiredText(body, field) {

@@ -17,6 +17,7 @@
     "storage-check": "node scripts/storage-check.js",
     "issue-test": "node scripts/issue-test.js",
     "sync-test": "node scripts/sync-test.js",
+    "printable-test": "node scripts/printable-text-test.js",
     "sync-run-test": "node scripts/sync-run-test.js",
     "auth-test": "node scripts/auth-test.js",
     "api-test": "node scripts/api-test.js",

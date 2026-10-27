@@ -124,6 +124,7 @@ const app = createApp({
     },
     async downloadPdf(pdfPath) { adminWorld.downloads.push(pdfPath); return PDF_BYTES; },
     syncRunner, // the same runner as the sync routes: a manual award starts the real runner with the fake sync
+    now: () => new Date('2026-10-27T12:00:00Z'), // a fixed clock: the future-date scenarios must not depend on the real day
     async findStudentsByIds(ids) {
       adminWorld.queries.push(`findStudentsByIds ${ids.join(',')}`);
       return students.filter((student) => ids.includes(student.studentId));
@@ -764,6 +765,22 @@ await scenario('admin awards: text is trimmed, and exactly 120 characters of ear
   await finishFakeSync();
 });
 
+await scenario('admin awards: dateEarned of today and of tomorrow (UTC) is accepted, the day after tomorrow is 400', async () => {
+  // The fake clock is 2026-10-27 12:00 UTC. Tomorrow is allowed so an admin in UTC+4 just after midnight is not refused.
+  for (const dateEarned of ['2026-10-27', '2026-10-28']) {
+    const result = await postAward(validAward({ studentId: 'BTU-T-0002', skillId: 'SKL-004', dateEarned }));
+    assert.equal(result.status, 201, `${dateEarned}: ${result.text}`);
+    assert.equal(result.json.dateEarned, dateEarned);
+    await finishFakeSync();
+    adminWorld.awards.pop(); // the fake database forgets it, so the same student and skill can be used for the next date
+  }
+  const insertsBefore = insertCalls();
+  const refused = await postAward(validAward({ studentId: 'BTU-T-0002', skillId: 'SKL-004', dateEarned: '2026-10-29' }));
+  assertError(refused, 400, 'INVALID_REQUEST');
+  assert.equal(refused.json.error.message, 'dateEarned must not be in the future');
+  assert.equal(insertCalls(), insertsBefore, 'a future date saves nothing');
+});
+
 await scenario('admin awards: the same student and skill twice is 409, nothing is saved and no sync starts', async () => {
   const runsBefore = syncWorld.runs.length;
   const savedBefore = adminWorld.awards.length;
@@ -795,6 +812,7 @@ await scenario('admin awards: a missing or wrong field is 400 INVALID_REQUEST th
     ['dateEarned wrong form', { dateEarned: '24.10.2026' }, /dateEarned/],
     ['dateEarned is not a real day', { dateEarned: '2026-02-30' }, /dateEarned/],
     ['dateEarned is a number', { dateEarned: 20261024 }, /dateEarned/],
+    ['dateEarned is in the future', { dateEarned: '2026-10-29' }, /dateEarned must not be in the future/],
     ['earnedThrough is a number', { earnedThrough: 5 }, /earnedThrough/],
     ['earnedThrough is 121 characters', { earnedThrough: 'x'.repeat(121) }, /earnedThrough.*120/],
   ];
