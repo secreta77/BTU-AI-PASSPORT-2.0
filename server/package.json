@@ -18,6 +18,7 @@
     "issue-test": "node scripts/issue-test.js",
     "sync-test": "node scripts/sync-test.js",
     "sync-run-test": "node scripts/sync-run-test.js",
+    "auto-sync-test": "node scripts/auto-sync-test.js",
     "auth-test": "node scripts/auth-test.js",
     "api-test": "node scripts/api-test.js",
     "preflight": "node scripts/preflight.js",

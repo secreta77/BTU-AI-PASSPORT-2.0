@@ -20,14 +20,17 @@ async function main() {
   // routes load the pool too. At the top that message would come as a stack trace instead of the line below.
   const { pool } = await import('./db/pool.js');
   const { createApp } = await import('./app.js');
+  const { startAutoSync } = await import('./sync/autoSync.js');
   await pool.query('SELECT 1'); // fail now, not on the first request
 
   warnAboutMissingSecrets();
   const server = createApp().listen(config.port, () => {
     console.log(`API is running on http://localhost:${config.port}`);
   });
+  const autoSync = startAutoSync({ minutes: config.autoSyncMinutes });
 
   const stop = () => {
+    autoSync?.stop();
     server.close(() => pool.end().then(() => process.exit(0)));
   };
   process.on('SIGINT', stop);
