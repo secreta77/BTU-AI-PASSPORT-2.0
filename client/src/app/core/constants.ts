@@ -81,6 +81,8 @@ export const SEARCH_DEBOUNCE_MS = 300;
 // Manual award form (docs/api.md, POST /api/admin/awards)
 export const STUDENT_ID_PATTERN = /^BTU-T-\d{4}$/;
 export const EARNED_THROUGH_MAX_LENGTH = 120;
+// The PDF uses Helvetica (WinAnsi), which cannot draw Georgian or emoji: printable ASCII only
+export const EARNED_THROUGH_PATTERN = /^[\x20-\x7E]*$/;
 
 // Stamp image of a passport skill, e.g. /assets/stamps/BDG-AI-001.png
 export const STAMP_IMAGE_URL = '/assets/stamps/';

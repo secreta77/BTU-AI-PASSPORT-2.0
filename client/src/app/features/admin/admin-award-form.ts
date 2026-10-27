@@ -12,6 +12,7 @@ import { Subject, catchError, exhaustMap, map, of } from 'rxjs';
 import {
   API_ERROR_CODE,
   EARNED_THROUGH_MAX_LENGTH,
+  EARNED_THROUGH_PATTERN,
   SKILL_CATEGORY_KEY,
   STUDENT_ID_PATTERN,
 } from '../../core/constants';
@@ -68,7 +69,7 @@ export class AdminAwardForm {
     }),
     earnedThrough: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.maxLength(EARNED_THROUGH_MAX_LENGTH)],
+      validators: [Validators.maxLength(EARNED_THROUGH_MAX_LENGTH), Validators.pattern(EARNED_THROUGH_PATTERN)],
     }),
   });
 
@@ -122,7 +123,9 @@ export class AdminAwardForm {
       return 'admin.awards.error.required';
     }
     if (errors['pattern']) {
-      return 'admin.awards.error.studentIdFormat';
+      return name === 'earnedThrough'
+        ? 'admin.awards.error.latinOnly'
+        : 'admin.awards.error.studentIdFormat';
     }
     if (errors['future']) {
       return 'admin.awards.error.dateFuture';
