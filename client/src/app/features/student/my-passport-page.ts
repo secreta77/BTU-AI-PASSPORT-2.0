@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { buildLinkedInAddUrl } from '../../core/utils/linkedin';
 import { createSlowFlag } from '../../core/utils/slow-loading';
 import { Skeleton } from '@btu/ui';
 import { EMPTY, Observable, Subject, catchError, exhaustMap, finalize, map, of, tap } from 'rxjs';
@@ -64,6 +65,12 @@ export class MyPassportPage {
   protected readonly isSlow = createSlowFlag(this.isLoading);
   protected readonly passport = computed(() => this.loadResult().passport);
   protected readonly loadErrorKey = computed(() => this.loadResult().errorKey);
+
+  // The "Add to LinkedIn" link: only when the passport is loaded
+  protected readonly linkedInUrl = computed(() => {
+    const passport = this.passport();
+    return passport ? buildLinkedInAddUrl(passport) : null;
+  });
 
   // The page title: focused when the passport arrives (tabindex=-1 in the template)
   private readonly pageTitle = viewChild<ElementRef<HTMLElement>>('pageTitle');

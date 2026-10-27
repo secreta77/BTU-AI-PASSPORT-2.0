@@ -17,6 +17,46 @@
   color: $color-text-muted;
 }
 
+// PDF and LinkedIn buttons: side by side, wrapping onto the next line on a narrow screen
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-sm;
+
+  // .button is made for <button>: the link needs its own display and no underline
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: $space-xs;
+    // Narrower sides on a phone, so the Georgian text stays on one line at 320px
+    padding-inline: $space-sm;
+    // Like a <button>: both buttons are equally tall
+    line-height: normal;
+    text-align: center;
+    text-decoration: none;
+
+    @include up(sm) {
+      padding-inline: $space-lg;
+    }
+  }
+
+  &__icon {
+    flex: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    fill: currentColor;
+  }
+
+  // Own row under the buttons
+  &__hint {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: $font-size-small;
+  }
+}
+
 .facts {
   margin: 0 0 $space-md;
 

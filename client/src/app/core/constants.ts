@@ -35,6 +35,13 @@ export const OG_IMAGE_URL = `${SITE_URL}/assets/og-image.png`;
 // Block explorer transaction page (Sepolia testnet, verify page link)
 export const TX_EXPLORER_URL = 'https://sepolia.etherscan.io/tx/';
 
+// "Add to LinkedIn" on the student passport page. LinkedIn's public form needs no API key or backend.
+// Only the organization name is sent. With BTU's LinkedIn company ID (organizationId) LinkedIn
+// would also show the BTU logo next to the certificate.
+export const LINKEDIN_ADD_CERT_URL = 'https://www.linkedin.com/profile/add';
+export const LINKEDIN_CERT_NAME = 'BTU AI Skills Digital Passport';
+export const LINKEDIN_ORG_NAME = 'Business and Technology University (BTU)';
+
 // What the status badge shows (decided by comparing version with latestVersion)
 export const VERSION_BADGE = {
   LATEST: 'latest',
