@@ -2,6 +2,7 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { ActivatedRouteSnapshot, NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
+import { LANGUAGE, OG_IMAGE_URL, SITE_URL } from '../constants';
 import { TranslationKey } from '../i18n/ka';
 import { LanguageService } from '../i18n/language.service';
 
@@ -36,12 +37,31 @@ export class SeoService {
       const { titleKey, noindex } = this.routeData();
       const pageTitle = titleKey ? this.languageService.translate(titleKey) : '';
       this.title.setTitle(pageTitle ? `${pageTitle} · ${SITE_NAME}` : SITE_NAME);
-      this.meta.updateTag({
-        name: 'description',
-        content: this.languageService.translate('seo.description'),
-      });
+      const description = this.languageService.translate('seo.description');
+      this.meta.updateTag({ name: 'description', content: description });
+      this.updateSocialTags(
+        pageTitle ? `${pageTitle} · ${SITE_NAME}` : SITE_NAME,
+        description,
+      );
       this.meta.updateTag({ name: 'robots', content: noindex ? ROBOTS_NOINDEX : ROBOTS_INDEX });
     });
+  }
+
+  // Open Graph (WhatsApp, Messenger, Facebook) and Twitter cards. Crawlers read the static tags
+  // in index.html; these updates keep the tags right for the current page and language in the browser.
+  private updateSocialTags(title: string, description: string): void {
+    const isGeorgian = this.languageService.language() === LANGUAGE.KA;
+    const ogTags = [
+      { property: 'og:title', content: title },
+      { property: 'og:description', content: description },
+      { property: 'og:url', content: SITE_URL + this.router.url.split('?')[0] },
+      { property: 'og:image', content: OG_IMAGE_URL },
+      { property: 'og:locale', content: isGeorgian ? 'ka_GE' : 'en_US' },
+    ];
+    // updateTag finds an existing tag by the selector; the default selector is name=..., not property=...
+    ogTags.forEach((tag) => this.meta.updateTag(tag, `property="${tag.property}"`));
+    this.meta.updateTag({ name: 'twitter:title', content: title });
+    this.meta.updateTag({ name: 'twitter:description', content: description });
   }
 
   // Route data sits on the lazy-loaded leaf route, not on the root snapshot

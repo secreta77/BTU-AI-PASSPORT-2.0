@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { createSlowFlag } from '../../core/utils/slow-loading';
 import { Skeleton } from '@btu/ui';
 import { EMPTY, Observable, Subject, catchError, exhaustMap, finalize, map, of, tap } from 'rxjs';
 import {
@@ -59,6 +60,8 @@ export class MyPassportPage {
     initialValue: { state: 'loading', passport: null, errorKey: GENERIC_ERROR_KEY } as LoadResult,
   });
   protected readonly state = computed(() => this.loadResult().state);
+  protected readonly isLoading = computed(() => this.state() === 'loading');
+  protected readonly isSlow = createSlowFlag(this.isLoading);
   protected readonly passport = computed(() => this.loadResult().passport);
   protected readonly loadErrorKey = computed(() => this.loadResult().errorKey);
 

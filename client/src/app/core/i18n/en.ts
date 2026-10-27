@@ -18,6 +18,7 @@ export const en: Translations = {
   'footer.text': 'BTU AI Skills Digital Passport. Hackathon prototype.',
 
   'common.comingSoon': 'Coming soon.',
+  'common.serverWaking': 'The server is waking up. This can take up to 30 seconds.',
 
   'seo.description':
     'Verify a BTU AI Skills Digital Passport by QR or code, anchored on the blockchain.',
@@ -25,6 +26,11 @@ export const en: Translations = {
   'seo.title.login': 'Log in',
   'seo.title.myPassport': 'My passport',
   'seo.title.admin': 'Admin',
+  'seo.title.notFound': 'Page not found',
+
+  'notFound.title': 'Page not found',
+  'notFound.text': 'The address you opened does not exist or has been moved.',
+  'notFound.link': 'Go to passport verification',
 
   'verify.title': 'Verify a passport',
   'verify.codeLabel': 'Verification code',
@@ -167,7 +173,7 @@ export const en: Translations = {
   'admin.awards.skillsError': 'The skills list could not be loaded.',
   'admin.awards.dateEarned': 'Date earned',
   'admin.awards.earnedThrough': 'Earned through (optional)',
-  'admin.awards.earnedThroughHint': 'At most 120 characters.',
+  'admin.awards.earnedThroughHint': 'Latin letters only (the PDF is in English), max 120 characters.',
   'admin.awards.submit': 'Add skill',
   'admin.awards.submitting': 'Adding…',
   'admin.awards.success': 'The skill was added. Sync has started.',
@@ -176,6 +182,7 @@ export const en: Translations = {
   'admin.awards.error.required': 'This field is required.',
   'admin.awards.error.studentIdFormat': 'The ID must look like BTU-T-0000.',
   'admin.awards.error.dateFuture': 'A future date is not allowed.',
+  'admin.awards.error.latinOnly': 'Use Latin letters only.',
   'admin.awards.error.tooLong': 'At most 120 characters.',
   'admin.awards.error.duplicate': 'This student already has this skill.',
   'admin.awards.error.studentNotFound': 'No student with this ID.',

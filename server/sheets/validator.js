@@ -6,6 +6,7 @@ import {
   SKILL_CATEGORY,
   STUDENT_STATUS,
 } from '../shared/constants.js';
+import { describeCharacter, findUnprintableCharacter } from '../pdf/printableText.js';
 
 // Required fields (stampCode is a formula in the Sheet; passportId and firstIssued are empty for new students)
 const REQUIRED_FIELDS = [
@@ -22,6 +23,15 @@ const REQUIRED_FIELDS = [
   ['skillCategory', 'Skill Category'],
   ['skillDescription', 'Skill Description'],
   ['dateEarned', 'Date Earned'],
+];
+
+// Fields the renderer draws on the passport (pdf/renderer.js), with the Sheet column names.
+// Skill name and description are drawn in capitals.
+const PDF_TEXT_FIELDS = [
+  { field: 'firstName', label: 'First Name', drawnInCapitals: false },
+  { field: 'lastName', label: 'Last Name', drawnInCapitals: false },
+  { field: 'skillName', label: 'Skill Name', drawnInCapitals: true },
+  { field: 'skillDescription', label: 'Skill Description', drawnInCapitals: true },
 ];
 
 export function validateRows(rows) {
@@ -63,6 +73,9 @@ function findFirstProblem(row) {
   }
   if (!isRealDate(row.dateEarned)) return `invalid Date Earned "${row.dateEarned}"`;
 
+  const unprintable = findTextThePdfCannotPrint(row);
+  if (unprintable) return unprintable;
+
   // Optional for new students, but must be correct when filled in
   if (row.passportId !== null && !ID_PATTERN.PASSPORT_ID.test(row.passportId)) {
     return `invalid Passport ID "${row.passportId}"`;
@@ -74,8 +87,20 @@ function findFirstProblem(row) {
   return null;
 }
 
+// The passport PDF has no Georgian letters or emoji. Such a row is refused here, with the field and the character,
+// because at issue time it would fail the whole student again and again (and block the student's new skills).
+function findTextThePdfCannotPrint(row) {
+  for (const { field, label, drawnInCapitals } of PDF_TEXT_FIELDS) {
+    const character = findUnprintableCharacter(row[field], { drawnInCapitals });
+    if (character !== null) {
+      return `${label} has a character the passport PDF cannot print: ${describeCharacter(character)}. Use Latin letters`;
+    }
+  }
+  return null;
+}
+
 // Checks the YYYY-MM-DD format and that the date exists (2026-02-30 is rejected)
-function isRealDate(text) {
+export function isRealDate(text) {
   if (!DATE_PATTERN.test(text)) return false;
   const date = new Date(`${text}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text;

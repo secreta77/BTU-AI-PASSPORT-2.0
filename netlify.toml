@@ -43,3 +43,13 @@
   for = "/login"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
+
+# Security headers on every page. No Content-Security-Policy yet: it needs testing with the
+# Angular inline styles, the Google Fonts and the public RPC calls first.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

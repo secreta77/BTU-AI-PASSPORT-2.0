@@ -27,6 +27,11 @@ export const LANGUAGE = {
 export const DEFAULT_LANGUAGE = LANGUAGE.KA;
 export const LANGUAGE_STORAGE_KEY = 'btu-lang';
 
+// Public address of the site (Netlify). Used for og:url and og:image. index.html repeats it
+// because social crawlers do not run JavaScript.
+export const SITE_URL = 'https://btu-ai-passport.netlify.app';
+export const OG_IMAGE_URL = `${SITE_URL}/assets/og-image.png`;
+
 // Block explorer transaction page (Sepolia testnet, verify page link)
 export const TX_EXPLORER_URL = 'https://sepolia.etherscan.io/tx/';
 
@@ -76,6 +81,8 @@ export const SEARCH_DEBOUNCE_MS = 300;
 // Manual award form (docs/api.md, POST /api/admin/awards)
 export const STUDENT_ID_PATTERN = /^BTU-T-\d{4}$/;
 export const EARNED_THROUGH_MAX_LENGTH = 120;
+// The PDF uses Helvetica (WinAnsi), which cannot draw Georgian or emoji: printable ASCII only
+export const EARNED_THROUGH_PATTERN = /^[\x20-\x7E]*$/;
 
 // Stamp image of a passport skill, e.g. /assets/stamps/BDG-AI-001.png
 export const STAMP_IMAGE_URL = '/assets/stamps/';

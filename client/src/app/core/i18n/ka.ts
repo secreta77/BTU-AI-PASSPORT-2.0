@@ -16,6 +16,7 @@ export const ka = {
   'footer.text': 'BTU AI უნარების ციფრული პასპორტი. ჰაკათონის პროტოტიპი.',
 
   'common.comingSoon': 'მალე დაემატება.',
+  'common.serverWaking': 'სერვერი იღვიძებს, ეს შეიძლება 30 წამამდე გაგრძელდეს.',
 
   'seo.description':
     'BTU-ს AI უნარების ციფრული პასპორტის გადამოწმება: QR-ით ან კოდით, ბლოკჩეინზე დამოწმებული.',
@@ -23,6 +24,11 @@ export const ka = {
   'seo.title.login': 'შესვლა',
   'seo.title.myPassport': 'ჩემი პასპორტი',
   'seo.title.admin': 'ადმინისტრირება',
+  'seo.title.notFound': 'გვერდი ვერ მოიძებნა',
+
+  'notFound.title': 'გვერდი ვერ მოიძებნა',
+  'notFound.text': 'მისამართი, რომელიც გახსენით, არ არსებობს ან გადატანილია.',
+  'notFound.link': 'პასპორტის გადამოწმებაზე გადასვლა',
 
   'verify.title': 'პასპორტის გადამოწმება',
   'verify.codeLabel': 'ვერიფიკაციის კოდი',
@@ -165,7 +171,7 @@ export const ka = {
   'admin.awards.skillsError': 'უნარების სია ვერ ჩაიტვირთა.',
   'admin.awards.dateEarned': 'მიღების თარიღი',
   'admin.awards.earnedThrough': 'სად მიიღო (არასავალდებულო)',
-  'admin.awards.earnedThroughHint': 'მაქსიმუმ 120 სიმბოლო.',
+  'admin.awards.earnedThroughHint': 'ლათინური ასოებით (PDF ინგლისურენოვანია), მაქსიმუმ 120 სიმბოლო.',
   'admin.awards.submit': 'უნარის დამატება',
   'admin.awards.submitting': 'ემატება…',
   'admin.awards.success': 'უნარი დაემატა. სინქრონიზაცია დაიწყო.',
@@ -174,6 +180,7 @@ export const ka = {
   'admin.awards.error.required': 'ველი სავალდებულოა.',
   'admin.awards.error.studentIdFormat': 'ID უნდა იყოს BTU-T-0000 ფორმატის.',
   'admin.awards.error.dateFuture': 'მომავალი თარიღი დაუშვებელია.',
+  'admin.awards.error.latinOnly': 'გამოიყენეთ მხოლოდ ლათინური ასოები.',
   'admin.awards.error.tooLong': 'მაქსიმუმ 120 სიმბოლო.',
   'admin.awards.error.duplicate': 'ეს უნარი ამ სტუდენტს უკვე აქვს.',
   'admin.awards.error.studentNotFound': 'ასეთი სტუდენტი ვერ მოიძებნა.',

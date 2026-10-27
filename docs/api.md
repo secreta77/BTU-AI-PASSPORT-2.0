@@ -191,7 +191,7 @@ It is kept in server memory and is lost on restart (enough for the MVP).
 Before the first run: `startedAt`, `finishedAt` and `summary` are `null`. If the whole run crashed, `error` holds a short message.
 
 ### POST /api/admin/awards
-**Status: the contract is fixed, the implementation follows.** Adds one skill to one student by hand, without the Google Sheet (source `manual`). The skill is saved as *pending* and goes into the student's next passport version (V2, V3, …) with the next sync.
+**Status: implemented.** Adds one skill to one student by hand, without the Google Sheet (source `manual`). The skill is saved as *pending* and goes into the student's next passport version (V2, V3, …) with the next sync.
 
 Body (JSON):
 ```json
@@ -203,8 +203,8 @@ Body (JSON):
 }
 ```
 - `studentId`: `BTU-T-####`, `skillId`: `SKL-###`.
-- `dateEarned`: `YYYY-MM-DD`, a real calendar date (the same check as for the Sheet).
-- `earnedThrough`: optional, text, trimmed, at most 120 characters. Missing, `null` or empty → stored as `null` (the PDF shows "—").
+- `dateEarned`: `YYYY-MM-DD`, a real calendar date, and not in the future (tomorrow by the UTC clock is still accepted, so an admin whose day has already turned is not refused).
+- `earnedThrough`: optional, text, trimmed, at most 120 characters, and only characters the PDF font can print (Latin letters with accents, digits, usual punctuation; no Georgian letters, no emoji, no line breaks), otherwise `400` that names the field. The form checks the same. Missing, `null` or empty → stored as `null` (the PDF shows "—").
 
 `201`
 ```json
@@ -223,6 +223,12 @@ Body (JSON):
 - `status` is always `"pending"` here: saved, not yet in a passport version.
 - After saving, the server starts a sync (the same as `POST /api/admin/sync`). `syncStarted: true` → the page polls `GET /api/admin/sync/status` until `running` is `false`, then reloads the passport list. `syncStarted: false` → a sync was already running; the skill waits for the next one (press "Sync" again).
 - No idempotency key: sending the same student and skill twice gives `409` the second time.
+- Each saved award adds one `info` line to the sync log (`Manual award MAN-0001: BTU-T-0007 got skill SKL-004`), so the history page shows who got what.
+- The PDF does not print `earnedThrough` yet (it always shows "—"), but it is already limited to printable characters, so it can be printed later without a new check. Names, skill names and descriptions from the Sheet ARE printed, and the Sheet validator refuses Georgian letters and emoji there (`Row 12: First Name has a character the passport PDF cannot print: ...`).
+- **After a `201` the sync can still fail.** The skill stays saved as *pending* in both cases and is tried again at every later sync, so nothing is lost. The page must not treat "`running` is `false`" as "issued":
+  - The whole run failed (the Sheet cannot be read, the database is down): `GET /api/admin/sync/status` gives `running: false`, `summary: null` and `error` with a short message. The run reads the Sheet first, so a Google problem also stops the issuing of a manual award.
+  - One student failed (PDF, Storage or blockchain step): the run finishes with `error: null`, but `summary.errors` is above 0 and `versionsIssued` is lower. The text is in the sync log (`level: "error"`, `BTU-T-0007: issuing a new passport version failed: ...`). A manual award has no Sheet row, so nothing is written to the Sheet for it.
+  - So after the run, reload the passport list and check that the student has the new version; otherwise show `error` or the `summary.errors` count and point to the sync log.
 
 Errors (the usual `{ "error": { "code", "message" } }`):
 - `400 INVALID_REQUEST`: a field is missing or has the wrong form (the message names the field).
@@ -232,7 +238,7 @@ Errors (the usual `{ "error": { "code", "message" } }`):
 - `409 AWARD_ALREADY_EXISTS`: this student already has this skill (one skill per student, whatever the source).
 
 ### GET /api/admin/skills
-**Status: the contract is fixed, the implementation follows.** The skills list for the dropdown of the "add skill" form. The student dropdown can use `GET /api/admin/passports`.
+**Status: implemented.** The skills list for the dropdown of the "add skill" form. The student dropdown can use `GET /api/admin/passports`.
 
 `200`
 ```json

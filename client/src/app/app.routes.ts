@@ -38,5 +38,10 @@ export const routes: Routes = [
     data: { titleKey: 'seo.title.admin', noindex: true },
     loadComponent: () => import('./features/admin/admin-page').then((m) => m.AdminPage),
   },
-  { path: '**', redirectTo: 'verify' },
+  {
+    path: '**',
+    data: { titleKey: 'seo.title.notFound', noindex: true },
+    loadComponent: () =>
+      import('./features/not-found/not-found-page').then((m) => m.NotFoundPage),
+  },
 ];

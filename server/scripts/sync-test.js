@@ -91,7 +91,8 @@ async function scenario(name, work) {
   }
 }
 
-const { valid: realRows } = validateRows(await readRowsFromXlsx(testDataPath));
+const realRowsBeforeValidation = await readRowsFromXlsx(testDataPath);
+const { valid: realRows } = validateRows(realRowsBeforeValidation);
 
 // ---------- Part 1: row planning ----------
 
@@ -249,6 +250,45 @@ await scenario('skills come only from rows that were accepted', () => {
   ];
   const plan = planRows(rows, emptyKnown());
   assert.deepEqual(plan.skills.map((skill) => skill.skillId), ['SKL-001']);
+});
+
+// The passport PDF cannot print Georgian letters or emoji: such a row is refused up front, the others go on
+await scenario('validator: a Georgian first name is refused with the field and the character, other rows stay valid', () => {
+  const bad = makeRow({ firstName: 'საბა' });
+  const good = makeRow({ firstName: 'José', lastName: 'Müller' });
+  const { valid, errors } = validateRows([bad, good]);
+  assert.deepEqual(valid, [good]);
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].sheetRow, bad.sheetRow);
+  assert.equal(errors[0].recordId, bad.recordId);
+  assert.equal(errors[0].message, `Row ${bad.sheetRow}: First Name has a character the passport PDF cannot print: "ს" (U+10E1). Use Latin letters`);
+});
+
+await scenario('validator: last name, skill name and skill description are checked too (emoji, line break)', () => {
+  const rows = [
+    makeRow({ lastName: 'Ნინო' }),
+    makeRow({ skillName: 'Data \u{1F916} Analysis' }),
+    makeRow({ skillDescription: 'Line one\nLine two' }),
+  ];
+  const { valid, errors } = validateRows(rows);
+  assert.equal(valid.length, 0);
+  assert.match(errors[0].message, /^Row \d+: Last Name has a character the passport PDF cannot print: "Ნ" \(U\+1C9C\)/);
+  assert.match(errors[1].message, /Skill Name has a character the passport PDF cannot print: "\u{1F916}" \(U\+1F916\)/u);
+  assert.match(errors[2].message, /Skill Description has a character the passport PDF cannot print: U\+000A\./);
+});
+
+await scenario('validator: the skill name is drawn in capitals, so µ (capital Μ is Greek) is refused, but ß and accents pass', () => {
+  const { valid, errors } = validateRows([
+    makeRow({ skillName: 'µ-learning' }),
+    makeRow({ skillName: 'Straße und Café', skillDescription: 'O’Brien’s “data” – ok…' }),
+  ]);
+  assert.equal(valid.length, 1);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0].message, /Skill Name has a character the passport PDF cannot print: "µ" \(U\+00B5\)/);
+});
+
+await scenario('validator: the real test data still has no problems', () => {
+  assert.equal(validateRows(realRowsBeforeValidation).errors.length, 0);
 });
 
 // ---------- Part 2: which Sheet cells must change ----------

@@ -94,7 +94,12 @@ const syncLogRows = [
 ];
 
 const world = { lookups: [], logged: [], failLookup: null };
-const adminWorld = { queries: [], downloads: [] };
+// What the database returns for the skills dropdown. `internalNote` is not in docs/api.md: it must never reach the answer.
+const adminSkillRows = [
+  { skillId: 'SKL-001', name: 'AI Literacy', category: 'AI Skill', description: 'Fundamentals.', internalNote: 'x' },
+  { skillId: 'SKL-004', name: 'Data Analysis', category: 'AI Applied Skill', description: 'Works with data.', internalNote: 'x' },
+];
+const adminWorld = { queries: [], downloads: [], skillRows: adminSkillRows, awards: [] };
 // The sync is not real: it waits until the test lets it finish. The runner around it is the real one.
 const syncWorld = { runs: [], resolve: null, reject: null, clock: new Date('2026-10-22T16:00:00.000Z'), logged: [] };
 const syncRunner = createSyncRunner({
@@ -110,6 +115,7 @@ const studentWorld = { downloads: [], failDownload: false };
 const app = createApp({
   admin: {
     async listPassports() { adminWorld.queries.push('listPassports'); return adminPassports; },
+    async listSkills() { adminWorld.queries.push('listSkills'); return adminWorld.skillRows; },
     async findPassportsByIds(ids) { adminWorld.queries.push('findPassportsByIds'); return adminPassports.filter((item) => ids.includes(item.passportId)); },
     async findVersionsByPassport(passportId) { adminWorld.queries.push('findVersionsByPassport'); return adminVersions[passportId] ?? []; },
     async findVersionPdfPath(passportId, version) {
@@ -117,6 +123,23 @@ const app = createApp({
       return adminPdfPaths.get(`${passportId}|${version}`) ?? null;
     },
     async downloadPdf(pdfPath) { adminWorld.downloads.push(pdfPath); return PDF_BYTES; },
+    syncRunner, // the same runner as the sync routes: a manual award starts the real runner with the fake sync
+    now: () => new Date('2026-10-27T12:00:00Z'), // a fixed clock: the future-date scenarios must not depend on the real day
+    async findStudentsByIds(ids) {
+      adminWorld.queries.push(`findStudentsByIds ${ids.join(',')}`);
+      return students.filter((student) => ids.includes(student.studentId));
+    },
+    async findSkillById(skillId) {
+      adminWorld.queries.push(`findSkillById ${skillId}`);
+      return adminSkillRows.find((skill) => skill.skillId === skillId) ?? null;
+    },
+    // Like the real function: the next MAN- number, and null when the student already has the skill
+    async insertManualAward(award) {
+      adminWorld.queries.push('insertManualAward');
+      if (adminWorld.awards.some((old) => old.studentId === award.studentId && old.skillId === award.skillId)) return null;
+      adminWorld.awards.push(award);
+      return `MAN-${String(adminWorld.awards.length).padStart(4, '0')}`;
+    },
   },
   sync: {
     syncRunner,
@@ -485,6 +508,7 @@ await scenario('admin: without the key, with a wrong key or with a student token
   const studentToken = await login('giorgi@example.org');
   const paths = [
     ['GET', '/api/admin/passports'],
+    ['GET', '/api/admin/skills'],
     ['GET', '/api/admin/passports/BTU-AI-000125/versions'],
     ['GET', '/api/admin/passports/BTU-AI-000125/versions/1/pdf'],
     ['GET', '/api/admin/sync-log'],
@@ -659,8 +683,192 @@ await scenario('a sync that crashes: the server stays up, the status holds a sho
   assert.equal((await call('/api/admin/sync/status', ADMIN)).json.error, null, 'the old error stays after a good run');
 });
 
+await scenario('admin skills: the list of docs/api.md (skillId, name, category, description), no fields beyond it', async () => {
+  const result = await call('/api/admin/skills', ADMIN);
+  assert.equal(result.status, 200);
+  assert.match(result.headers.get('content-type'), /application\/json/);
+  assert.deepEqual(result.json, {
+    skills: [
+      { skillId: 'SKL-001', name: 'AI Literacy', category: 'AI Skill', description: 'Fundamentals.' },
+      { skillId: 'SKL-004', name: 'Data Analysis', category: 'AI Applied Skill', description: 'Works with data.' },
+    ],
+  });
+  assert.equal(adminWorld.queries.at(-1), 'listSkills');
+});
+
+await scenario('admin skills: no skills in the database is an empty list, not an error', async () => {
+  adminWorld.skillRows = [];
+  try {
+    const result = await call('/api/admin/skills', ADMIN);
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.json, { skills: [] });
+  } finally {
+    adminWorld.skillRows = adminSkillRows;
+  }
+});
+
+// ---------- POST /api/admin/awards ----------
+
+const validAward = (changes = {}) => ({
+  studentId: 'BTU-T-0002', skillId: 'SKL-001', dateEarned: '2026-10-24', earnedThrough: 'BTU Classroom: Data Analysis course', ...changes,
+});
+const postAward = (body, headers = { 'Content-Type': 'application/json' }) => call('/api/admin/awards', {
+  method: 'POST',
+  headers: { ...headers, ...ADMIN.headers },
+  body: typeof body === 'string' ? body : JSON.stringify(body),
+});
+const insertCalls = () => adminWorld.queries.filter((query) => query === 'insertManualAward').length;
+async function finishFakeSync() {
+  syncWorld.resolve({ summary: { rowsRead: 0, newAwards: 0, versionsIssued: 0, duplicates: 0, errors: 0 }, problems: [] });
+  await flush();
+}
+
+await scenario('admin awards: the skill is saved as pending with a MAN- Record ID, and a sync starts at once (201)', async () => {
+  const runsBefore = syncWorld.runs.length;
+  const result = await postAward(validAward());
+  assert.equal(result.status, 201);
+  assert.match(result.headers.get('content-type'), /application\/json/);
+  assert.deepEqual(result.json, {
+    recordId: 'MAN-0001', studentId: 'BTU-T-0002', skillId: 'SKL-001', dateEarned: '2026-10-24',
+    earnedThrough: 'BTU Classroom: Data Analysis course', source: 'manual', status: 'pending', syncStarted: true,
+  });
+  assert.equal(syncWorld.runs.length, runsBefore + 1, 'the sync did not start');
+  assert.equal(syncWorld.runs.at(-1).bootstrap, false);
+  assert.deepEqual(adminWorld.awards.at(-1), {
+    studentId: 'BTU-T-0002', skillId: 'SKL-001', dateEarned: '2026-10-24', earnedThrough: 'BTU Classroom: Data Analysis course',
+  });
+  await finishFakeSync();
+});
+
+await scenario('admin awards: earnedThrough missing, null, empty or only spaces is saved as null', async () => {
+  const cases = [
+    { studentId: 'BTU-T-0003', skillId: 'SKL-001', changes: { earnedThrough: undefined } },
+    { studentId: 'BTU-T-0003', skillId: 'SKL-004', changes: { earnedThrough: null } },
+    { studentId: 'BTU-T-0004', skillId: 'SKL-001', changes: { earnedThrough: '' } },
+    { studentId: 'BTU-T-0004', skillId: 'SKL-004', changes: { earnedThrough: '   ' } },
+  ];
+  for (const { studentId, skillId, changes } of cases) {
+    const result = await postAward(validAward({ studentId, skillId, ...changes }));
+    assert.equal(result.status, 201, result.text);
+    assert.equal(result.json.earnedThrough, null);
+    assert.equal(adminWorld.awards.at(-1).earnedThrough, null);
+    await finishFakeSync();
+  }
+});
+
+await scenario('admin awards: text is trimmed, and exactly 120 characters of earnedThrough are accepted', async () => {
+  const longText = 'x'.repeat(120);
+  const result = await postAward(validAward({ studentId: 'BTU-T-0001', skillId: 'SKL-001', earnedThrough: `  ${longText}  `, dateEarned: ' 2026-10-24 ' }));
+  assert.equal(result.status, 201, result.text);
+  assert.equal(result.json.earnedThrough, longText);
+  assert.equal(result.json.dateEarned, '2026-10-24');
+  await finishFakeSync();
+});
+
+await scenario('admin awards: dateEarned of today and of tomorrow (UTC) is accepted, the day after tomorrow is 400', async () => {
+  // The fake clock is 2026-10-27 12:00 UTC. Tomorrow is allowed so an admin in UTC+4 just after midnight is not refused.
+  for (const dateEarned of ['2026-10-27', '2026-10-28']) {
+    const result = await postAward(validAward({ studentId: 'BTU-T-0002', skillId: 'SKL-004', dateEarned }));
+    assert.equal(result.status, 201, `${dateEarned}: ${result.text}`);
+    assert.equal(result.json.dateEarned, dateEarned);
+    await finishFakeSync();
+    adminWorld.awards.pop(); // the fake database forgets it, so the same student and skill can be used for the next date
+  }
+  const insertsBefore = insertCalls();
+  const refused = await postAward(validAward({ studentId: 'BTU-T-0002', skillId: 'SKL-004', dateEarned: '2026-10-29' }));
+  assertError(refused, 400, 'INVALID_REQUEST');
+  assert.equal(refused.json.error.message, 'dateEarned must not be in the future');
+  assert.equal(insertCalls(), insertsBefore, 'a future date saves nothing');
+});
+
+await scenario('admin awards: earnedThrough with accents and typographic punctuation is accepted (what the PDF font can print)', async () => {
+  const text = 'Caf\u00e9 \u2013 \u201cData\u201d & AI: BTU Classroom, 2026!';
+  const result = await postAward(validAward({ studentId: 'BTU-T-0002', skillId: 'SKL-004', earnedThrough: text }));
+  assert.equal(result.status, 201, result.text);
+  assert.equal(result.json.earnedThrough, text);
+  await finishFakeSync();
+  adminWorld.awards.pop(); // the fake database forgets it again
+});
+
+await scenario('admin awards: the same student and skill twice is 409, nothing is saved and no sync starts', async () => {
+  const runsBefore = syncWorld.runs.length;
+  const savedBefore = adminWorld.awards.length;
+  assertError(await postAward(validAward()), 409, 'AWARD_ALREADY_EXISTS');
+  assert.equal(adminWorld.awards.length, savedBefore);
+  assert.equal(syncWorld.runs.length, runsBefore, 'a sync started although nothing was saved');
+});
+
+await scenario('admin awards: an unknown student or skill is 404 and nothing is saved', async () => {
+  const insertsBefore = insertCalls();
+  const noStudent = await postAward(validAward({ studentId: 'BTU-T-0099' }));
+  assertError(noStudent, 404, 'STUDENT_NOT_FOUND');
+  assert.match(noStudent.json.error.message, /BTU-T-0099/);
+  const noSkill = await postAward(validAward({ skillId: 'SKL-999' }));
+  assertError(noSkill, 404, 'SKILL_NOT_FOUND');
+  assert.match(noSkill.json.error.message, /SKL-999/);
+  assert.equal(insertCalls(), insertsBefore, 'the database was asked to save an award for a missing student or skill');
+});
+
+await scenario('admin awards: a missing or wrong field is 400 INVALID_REQUEST that names the field', async () => {
+  const insertsBefore = insertCalls();
+  const cases = [
+    ['studentId missing', { studentId: undefined }, /studentId/],
+    ['studentId wrong form', { studentId: 'BTU-0002' }, /studentId/],
+    ['studentId not text', { studentId: 2 }, /studentId/],
+    ['skillId empty', { skillId: '' }, /skillId/],
+    ['skillId wrong form', { skillId: 'SKL-1' }, /skillId/],
+    ['dateEarned missing', { dateEarned: undefined }, /dateEarned/],
+    ['dateEarned wrong form', { dateEarned: '24.10.2026' }, /dateEarned/],
+    ['dateEarned is not a real day', { dateEarned: '2026-02-30' }, /dateEarned/],
+    ['dateEarned is a number', { dateEarned: 20261024 }, /dateEarned/],
+    ['dateEarned is in the future', { dateEarned: '2026-10-29' }, /dateEarned must not be in the future/],
+    ['earnedThrough is a number', { earnedThrough: 5 }, /earnedThrough/],
+    ['earnedThrough is 121 characters', { earnedThrough: 'x'.repeat(121) }, /earnedThrough.*120/],
+    ['earnedThrough is Georgian', { earnedThrough: 'BTU \u10d9\u10da\u10d0\u10e1\u10e0\u10e3\u10db\u10d8' }, /^earnedThrough can only contain Latin letters/],
+    ['earnedThrough has an emoji', { earnedThrough: 'Course \u{1F393}' }, /^earnedThrough can only contain Latin letters.*U\+1F393/u],
+  ];
+  for (const [name, changes, pattern] of cases) {
+    const result = await postAward(validAward(changes));
+    assertError(result, 400, 'INVALID_REQUEST');
+    assert.match(result.json.error.message, pattern, name);
+  }
+  assert.equal(insertCalls(), insertsBefore, 'something was saved from a wrong request');
+});
+
+await scenario('admin awards: a body that is not a JSON object (array, text, nothing, wrong content type) is 400', async () => {
+  const insertsBefore = insertCalls();
+  assertError(await postAward([]), 400, 'INVALID_REQUEST');
+  assertError(await postAward('this is not json'), 400, 'INVALID_REQUEST');
+  assertError(await call('/api/admin/awards', { method: 'POST', ...ADMIN }), 400, 'INVALID_REQUEST');
+  assertError(await postAward(JSON.stringify(validAward()), { 'Content-Type': 'text/plain' }), 400, 'INVALID_REQUEST');
+  assert.equal(insertCalls(), insertsBefore);
+});
+
+await scenario('admin awards: a sync that is already running does not stop the saving (201, syncStarted false)', async () => {
+  const started = await call('/api/admin/sync', { method: 'POST', ...ADMIN });
+  assert.equal(started.status, 202);
+  const runsBefore = syncWorld.runs.length;
+  const result = await postAward(validAward({ studentId: 'BTU-T-0001', skillId: 'SKL-004' }));
+  assert.equal(result.status, 201, result.text);
+  assert.equal(result.json.syncStarted, false);
+  assert.equal(result.json.status, 'pending');
+  assert.equal(syncWorld.runs.length, runsBefore, 'a second sync was started');
+  await finishFakeSync();
+});
+
+await scenario('admin awards: no admin key or a wrong one is 401 and nothing is saved', async () => {
+  const insertsBefore = insertCalls();
+  const body = JSON.stringify(validAward({ studentId: 'BTU-T-0001', skillId: 'SKL-004' }));
+  const headers = { 'Content-Type': 'application/json' };
+  assertError(await call('/api/admin/awards', { method: 'POST', headers, body }), 401, 'UNAUTHORIZED');
+  assertError(await call('/api/admin/awards', { method: 'POST', headers: { ...headers, 'X-Admin-Key': 'wrong' }, body }), 401, 'UNAUTHORIZED');
+  assert.equal(insertCalls(), insertsBefore);
+});
+
 await scenario('admin endpoints accept only their own methods', async () => {
+  assertError(await call('/api/admin/awards', ADMIN), 404, 'NOT_FOUND');
   assertError(await call('/api/admin/passports', { method: 'POST', ...ADMIN }), 404, 'NOT_FOUND');
+  assertError(await call('/api/admin/skills', { method: 'POST', ...ADMIN }), 404, 'NOT_FOUND');
   assertError(await call('/api/admin/sync', ADMIN), 404, 'NOT_FOUND');
   assertError(await call('/api/admin/sync/status', { method: 'POST', ...ADMIN }), 404, 'NOT_FOUND');
 });
