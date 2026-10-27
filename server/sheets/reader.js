@@ -6,6 +6,7 @@ import { getSheetsApi, SHEET_NAME } from './googleClient.js';
 
 const HEADER_FIRST_CELL = 'Student ID';
 const NOTES_FIRST_CELL_START = 'TECHNICAL NOTES';
+const VERIFICATION_HEADER = 'VERIFICATION STATUS'; // header of column U, compared without case and spaces
 
 // Column number (A = 1) -> field name. The only place where the column order is defined.
 const COLUMNS = {
@@ -29,7 +30,9 @@ const COLUMNS = {
   18: 'syncedVersion',
   19: 'syncedAt',
   20: 'syncError',
+  21: 'verificationStatus', // after T, so Q–T keep their place. Optional: older Sheets do not have it
 };
+const VERIFICATION_COLUMN_INDEX = 20; // column U in a list of cells (A = 0)
 const COLUMN_NUMBERS = Object.keys(COLUMNS).map(Number);
 
 // Google gives a date cell as a serial number. These fields are dates, so we turn the number into YYYY-MM-DD.
@@ -50,7 +53,7 @@ export async function readRowsFromGoogleSheet() {
   try {
     response = await sheetsApi.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: `'${SHEET_NAME}'!A:T`,
+      range: `'${SHEET_NAME}'!A:U`,
       // Real values, not the text on the screen: a date shown as 9/12/2026 would depend on the Sheet language
       valueRenderOption: 'UNFORMATTED_VALUE',
     });
@@ -70,7 +73,7 @@ export function rowsFromGoogleResponse({ range, values }) {
   return rowsFromMatrix(matrix);
 }
 
-// "'Passport Skill Records'!A1:T64" -> 1. The Sheet row numbers in sheetRow must be the real ones.
+// "'Passport Skill Records'!A1:U64" -> 1. The Sheet row numbers in sheetRow must be the real ones.
 function readFirstRowNumber(range) {
   const match = /!\$?[A-Z]+(\d+)/.exec(range ?? '');
   return match ? Number(match[1]) : 1;
@@ -183,6 +186,10 @@ function rowsFromMatrix(matrix) {
     throw new Error(`Header row (first cell "${HEADER_FIRST_CELL}") not found`);
   }
 
+  // Without this column the field is left out of the rows (undefined), so "no column" differs from "empty cell" (null)
+  const verificationHeader = matrix[headerIndex][VERIFICATION_COLUMN_INDEX];
+  const hasVerificationColumn = isVerificationHeader(verificationHeader);
+
   const rows = [];
   for (let index = headerIndex + 1; index < matrix.length; index++) {
     const row = cellsToObject(matrix[index], index + 1);
@@ -192,9 +199,23 @@ function rowsFromMatrix(matrix) {
     // Empty rows are skipped, but they do not stop reading
     if (isEmptyRow(row)) continue;
 
+    if (hasVerificationColumn) {
+      row.verificationStatus = row.verificationStatus?.toUpperCase() ?? null; // "confirmed " counts as CONFIRMED
+    } else if (row.verificationStatus === null) {
+      delete row.verificationStatus; // an old Sheet without the column: the filter stays off
+    } else {
+      // A status is written, but the header does not match (a typo). Stop: otherwise PENDING rows would be issued.
+      throw new Error(`Row ${row.sheetRow} has "${row.verificationStatus}" in column U, but the header of column U is `
+        + `${verificationHeader === null ? 'empty' : `"${verificationHeader}"`}. Name it "Verification Status".`);
+    }
+
     rows.push(row);
   }
   return rows;
+}
+
+function isVerificationHeader(headerCell) {
+  return headerCell !== null && headerCell !== undefined && headerCell.toUpperCase() === VERIFICATION_HEADER;
 }
 
 function cellsToObject(cells, sheetRow) {

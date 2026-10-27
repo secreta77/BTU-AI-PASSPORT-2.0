@@ -96,12 +96,18 @@ heading('Google Sheet');
 await check('Google Sheet', async () => {
   const { readRowsFromGoogleSheet } = await import('../sheets/reader.js');
   const { validateRows } = await import('../sheets/validator.js');
+  const { sheetHasVerificationColumn } = await import('../sync/statusFilter.js');
   const rows = await readRowsFromGoogleSheet();
   const { valid, errors } = validateRows(rows);
   const text = `${rows.length} rows read, ${valid.length} valid`;
-  return errors.length === 0
-    ? text
-    : warn('Google Sheet', `${text}, ${errors.length} with a problem (the sync shows each one in column T)`);
+  const notes = [];
+  if (errors.length > 0) {
+    notes.push(`${errors.length} with a problem (the sync shows each one in column T)`);
+  }
+  if (!sheetHasVerificationColumn(rows)) {
+    notes.push('column U "Verification Status" not found: every row is treated as CONFIRMED');
+  }
+  return notes.length === 0 ? text : warn('Google Sheet', `${text}, ${notes.join('; ')}`);
 });
 
 // ---------- Blockchain ----------

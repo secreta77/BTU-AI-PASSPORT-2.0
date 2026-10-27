@@ -10,6 +10,7 @@ import { readRowsFromGoogleSheet } from '../sheets/reader.js';
 import { validateRows } from '../sheets/validator.js';
 import { writeSheetUpdates } from '../sheets/writer.js';
 import { SYNC_LOG_LEVEL } from '../shared/constants.js';
+import { filterByVerificationStatus } from './statusFilter.js';
 import { planRows, studentSkillKey } from './rowPlanner.js';
 import { buildSheetUpdates } from './sheetUpdates.js';
 
@@ -30,7 +31,14 @@ const defaultDeps = {
 export async function runSync({ bootstrap = false, report = () => {} } = {}, deps = defaultDeps) {
   const rows = await deps.readRows(); // ONE Google call for the whole Sheet
   report(`Read ${rows.length} rows from the Sheet`);
-  const { valid, errors: validationErrors } = validateRows(rows);
+  // Only CONFIRMED rows go on (column U). Skipped rows are logged and the Sheet is not written for them.
+  const statusCheck = filterByVerificationStatus(rows);
+  const validation = validateRows(statusCheck.rows);
+  const valid = validation.valid;
+  const validationErrors = [...statusCheck.errors, ...validation.errors];
+  if (statusCheck.skipped.length > 0) {
+    report(`Skipped ${statusCheck.skipped.length} rows that are not CONFIRMED`);
+  }
 
   const known = await loadKnown(valid, deps.db);
   if (bootstrap && known.students.size > 0) {
@@ -47,7 +55,7 @@ export async function runSync({ bootstrap = false, report = () => {} } = {}, dep
 
   const rowByRecordId = firstRowOfEachRecord(valid);
   const messageByRow = collectRowMessages([...validationErrors, ...plan.errors, ...plan.duplicates], failures, rowByRecordId);
-  const sheetProblem = await writeBackToSheet(rows, messageByRow, deps);
+  const sheetProblem = await writeBackToSheet(rows, statusCheck.untouchedRows, messageByRow, deps);
 
   const problems = [
     ...[...validationErrors, ...plan.errors, ...plan.duplicates].map((issue) => issue.message),
@@ -60,6 +68,9 @@ export async function runSync({ bootstrap = false, report = () => {} } = {}, dep
     versionsIssued,
     duplicates: plan.duplicates.length,
     errors: validationErrors.length + plan.errors.length + failures.length + (sheetProblem ? 1 : 0),
+    // Only when there are some: the number of PENDING / REJECTED rows. No log line per row, because info lines are
+    // not deduplicated and a PENDING row would add a new line on every sync.
+    ...(statusCheck.skipped.length > 0 ? { skipped: statusCheck.skipped.length } : {}),
   };
   await logEnd(summary, failures, sheetProblem, deps);
   return { summary, problems };
@@ -216,7 +227,8 @@ function firstRowOfEachRecord(validRows) {
 
 // Returns null when the Sheet was updated, or a text when it was not. The data is safe in the database either way,
 // and the next sync writes the Sheet again, so a failure here must not fail the whole run.
-async function writeBackToSheet(rows, messageByRow, deps) {
+async function writeBackToSheet(allRows, untouchedRows, messageByRow, deps) {
+  const rows = allRows.filter((row) => !untouchedRows.has(row.sheetRow)); // PENDING / REJECTED: write nothing
   try {
     const studentIds = unique(rows.map((row) => row.studentId).filter(Boolean));
     const recordIds = rows.map((row) => row.recordId).filter(Boolean);
@@ -255,7 +267,8 @@ async function logEnd(summary, failures, sheetProblem, deps) {
 
 export function formatSummary(summary) {
   return `Sync finished: ${summary.rowsRead} rows read, ${summary.newAwards} new awards, `
-    + `${summary.versionsIssued} versions issued, ${summary.duplicates} duplicates, ${summary.errors} errors`;
+    + `${summary.versionsIssued} versions issued, ${summary.duplicates} duplicates, ${summary.errors} errors`
+    + (summary.skipped > 0 ? `, ${summary.skipped} skipped (not CONFIRMED)` : '');
 }
 
 function unique(values) {

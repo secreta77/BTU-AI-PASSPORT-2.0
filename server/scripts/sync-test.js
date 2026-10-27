@@ -5,9 +5,10 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeSheetUpdates } from '../sheets/writer.js';
-import { readRowsFromXlsx } from '../sheets/reader.js';
+import { readRowsFromXlsx, rowsFromGoogleResponse } from '../sheets/reader.js';
 import { validateRows } from '../sheets/validator.js';
 import { planRows, studentSkillKey } from '../sync/rowPlanner.js';
+import { filterByVerificationStatus, sheetHasVerificationColumn } from '../sync/statusFilter.js';
 import { buildSheetUpdates } from '../sync/sheetUpdates.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -398,6 +399,100 @@ await scenario('Sheet write: a wrong number of cells is refused before any call'
   const fakeApi = { spreadsheets: { values: { batchUpdate: async (request) => calls.push(request) } } };
   await assert.rejects(writeSheetUpdates({ passportRows: [{ sheetRow: 10, cells: ['BTU-AI-000200'] }] }, fakeApi), /expected 2 cells \(G–H\)/);
   assert.equal(calls.length, 0);
+});
+
+// ---------- Part 4: Verification Status (column U) ----------
+
+const withStatus = (status, overrides = {}) => makeRow({ verificationStatus: status, ...overrides });
+
+await scenario('status: CONFIRMED goes on, PENDING and REJECTED are skipped and the Sheet is not written for them', async () => {
+  const confirmed = withStatus('CONFIRMED');
+  const pending = withStatus('PENDING');
+  const rejected = withStatus('REJECTED');
+  const result = filterByVerificationStatus([confirmed, pending, rejected]);
+
+  assert.deepEqual(result.rows, [confirmed]);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.skipped.map((item) => item.message), [
+    `Row ${pending.sheetRow}: skipped (PENDING)`,
+    `Row ${rejected.sheetRow}: skipped (REJECTED)`,
+  ]);
+  assert.deepEqual([...result.untouchedRows], [pending.sheetRow, rejected.sheetRow]);
+});
+
+await scenario('status: an empty status on a new row is an error, an already SYNCED row stays as it is', async () => {
+  const fresh = withStatus(null);
+  const alreadySynced = withStatus(null, { syncStatus: 'SYNCED' });
+  const result = filterByVerificationStatus([fresh, alreadySynced]);
+
+  assert.deepEqual(result.rows, [alreadySynced]);
+  assert.deepEqual(result.errors.map((item) => item.message), [`Row ${fresh.sheetRow}: status missing`]);
+});
+
+await scenario('status: an unknown value is an error', async () => {
+  const row = withStatus('MAYBE');
+  const result = filterByVerificationStatus([row]);
+  assert.deepEqual(result.rows, []);
+  assert.deepEqual(result.errors.map((item) => item.message), [`Row ${row.sheetRow}: invalid Verification Status "MAYBE"`]);
+});
+
+await scenario('status: a SYNCED row that became PENDING keeps its skill and is only noted in the log', async () => {
+  const row = withStatus('PENDING', { syncStatus: 'SYNCED' });
+  const result = filterByVerificationStatus([row]);
+  assert.deepEqual(result.rows, []);
+  assert.equal(result.skipped[0].message, `Row ${row.sheetRow}: status changed after sync, ignored`);
+  assert(result.untouchedRows.has(row.sheetRow));
+});
+
+await scenario('status: without the column (field undefined) every row is processed as before', async () => {
+  const rows = [makeRow(), makeRow()];
+  assert(!('verificationStatus' in rows[0]));
+  const result = filterByVerificationStatus(rows);
+  assert.deepEqual(result.rows, rows);
+  assert.equal(result.skipped.length + result.errors.length, 0);
+});
+
+const HEADER_CELLS = ['Student ID', 'First Name', 'Last Name', 'Email', 'Program', 'Education Level', 'Passport ID',
+  'First Issued', 'Student Status', 'Record ID', 'Skill ID', 'Skill Name', 'Skill Category', 'Stamp', 'Description',
+  'Date Earned', 'Sync Status', 'Version', 'Synced At', 'Error'];
+const dataCells = [...'BTU-T-0101|A|B|a@b.org|P|L||'.split('|'), 'Active', 'REC-0001'];
+
+await scenario('reader: header "  verification STATUS " in column U is found; the value is trimmed and uppercased', async () => {
+  const values = [[...HEADER_CELLS, '  verification STATUS '], [...dataCells, 'SKL-001', 'N', 'AI Skill', '', 'D', '2026-09-12', '', '', '', '', ' confirmed ']];
+  const [row] = rowsFromGoogleResponse({ range: "'Passport Skill Records'!A1:U2", values });
+  assert.equal(row.verificationStatus, 'CONFIRMED');
+});
+
+await scenario('reader: header present but cell empty gives null; no header gives no field at all', async () => {
+  const body = [...dataCells, 'SKL-001', 'N', 'AI Skill', '', 'D', '2026-09-12'];
+  const [withColumn] = rowsFromGoogleResponse({ range: "'Passport Skill Records'!A1:U2", values: [[...HEADER_CELLS, 'Verification Status'], body] });
+  assert.equal(withColumn.verificationStatus, null);
+  const [withoutColumn] = rowsFromGoogleResponse({ range: "'Passport Skill Records'!A1:U2", values: [HEADER_CELLS, body] });
+  assert(!('verificationStatus' in withoutColumn));
+});
+
+await scenario('reader: a status in column U under a misspelled header is an error, not a silent switch-off', async () => {
+  const body = [...dataCells, 'SKL-001', 'N', 'AI Skill', '', 'D', '2026-09-12', '', '', '', '', 'PENDING'];
+  assert.throws(
+    () => rowsFromGoogleResponse({ range: "'Passport Skill Records'!A1:U2", values: [[...HEADER_CELLS, 'Verificaton Status'], body] }),
+    /column U.*"Verificaton Status".*Verification Status/s,
+  );
+  assert.throws(
+    () => rowsFromGoogleResponse({ range: "'Passport Skill Records'!A1:U2", values: [HEADER_CELLS, body] }),
+    /header of column U is empty/,
+  );
+});
+
+await scenario('sheetHasVerificationColumn: false only when there are rows and none has the field', () => {
+  assert.equal(sheetHasVerificationColumn([]), true);
+  assert.equal(sheetHasVerificationColumn([{ sheetRow: 2 }]), false);
+  assert.equal(sheetHasVerificationColumn([{ sheetRow: 2, verificationStatus: null }]), true);
+});
+
+await scenario('reader: the real test xlsx has no status column, so nothing changes for it', async () => {
+  const rows = await readRowsFromXlsx(testDataPath);
+  assert.equal(rows.length, 60);
+  assert(rows.every((row) => !('verificationStatus' in row)));
 });
 
 console.log(failed ? '\nSome scenarios FAILED.' : `\nAll ${step} scenarios passed.`);
