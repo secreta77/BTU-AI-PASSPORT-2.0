@@ -22,6 +22,11 @@ function readNumber(name, fallback = null) {
   return Number.isNaN(value) || readText(name) === '' ? fallback : value;
 }
 
+// true only for the words true / 1 / yes / on (any case); empty or anything else is false
+function readFlag(name) {
+  return ['true', '1', 'yes', 'on'].includes(readText(name).toLowerCase());
+}
+
 function readList(name) {
   return readText(name)
     .split(',')
@@ -66,6 +71,10 @@ export const config = {
   mail: {
     brevoApiKey: readText('BREVO_API_KEY'),
     from: readText('MAIL_FROM'), // the sender address confirmed in Brevo (Senders)
+  },
+  // NOTIFY_STUDENTS=true: e-mail the student when a new passport version is issued (needs the Brevo settings above)
+  notify: {
+    studentMail: readFlag('NOTIFY_STUDENTS'),
   },
   jwtSecret: readText('JWT_SECRET'),
   adminApiKey: readText('ADMIN_API_KEY'),
