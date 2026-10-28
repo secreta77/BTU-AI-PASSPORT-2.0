@@ -81,7 +81,9 @@
               </svg>
               {{ 'myPassport.linkedin.add' | t: language() }}
             </a>
-            <p class="muted actions__hint">{{ 'myPassport.linkedin.hint' | t: language() }}</p>
+            @if (linkedInNeedsUpdate()) {
+              <p class="muted actions__hint">{{ 'myPassport.linkedin.hint' | t: language() }}</p>
+            }
           }
         </div>
         <div aria-live="polite">

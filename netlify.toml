@@ -44,6 +44,11 @@
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
 
+[[headers]]
+  for = "/p/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
 # Security headers on every page. No Content-Security-Policy yet: it needs testing with the
 # Angular inline styles, the Google Fonts and the public RPC calls first.
 [[headers]]

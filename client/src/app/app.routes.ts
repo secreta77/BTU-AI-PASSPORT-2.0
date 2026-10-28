@@ -15,6 +15,12 @@ export const routes: Routes = [
     data: { titleKey: 'seo.title.verify', noindex: true },
   },
   {
+    path: 'p/:token',
+    data: { titleKey: 'seo.title.publicLink', noindex: true },
+    loadComponent: () =>
+      import('./features/public-link/public-link-page').then((m) => m.PublicLinkPage),
+  },
+  {
     path: 'login',
     data: { titleKey: 'seo.title.login', noindex: true },
     loadComponent: () => import('./features/student/login-page').then((m) => m.LoginPage),

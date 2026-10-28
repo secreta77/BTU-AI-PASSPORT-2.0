@@ -74,6 +74,12 @@ export class MyPassportPage {
     return passport ? buildLinkedInAddUrl(passport) : null;
   });
 
+  // The hint "update the link after a new version" is only true for the old /verify/<code> link
+  protected readonly linkedInNeedsUpdate = computed(() => {
+    const passport = this.passport();
+    return !!passport && !passport.publicToken;
+  });
+
   // The page title: focused when the passport arrives (tabindex=-1 in the template)
   private readonly pageTitle = viewChild<ElementRef<HTMLElement>>('pageTitle');
 

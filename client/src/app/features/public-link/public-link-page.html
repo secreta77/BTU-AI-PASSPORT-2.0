@@ -1,0 +1,32 @@
+<div aria-live="polite">
+  @switch (state()) {
+    @case ('loading') {
+      <section class="card card--skeleton" aria-hidden="true">
+        <ui-skeleton variant="title" />
+        <ui-skeleton variant="line" />
+        <ui-skeleton variant="line-short" />
+      </section>
+    }
+    @case ('notFound') {
+      <section class="card card--error">
+        <h1 class="title">{{ 'publicLink.notFound.title' | t: language() }}</h1>
+        <p>{{ 'publicLink.notFound.text' | t: language() }}</p>
+        <a class="button" routerLink="/verify">{{ 'notFound.link' | t: language() }}</a>
+      </section>
+    }
+    @case ('error') {
+      <section class="card card--error">
+        <h1 class="title">{{ 'verify.error.title' | t: language() }}</h1>
+        <p>{{ 'publicLink.error.text' | t: language() }}</p>
+        <div class="actions">
+          <button class="button" type="button" (click)="retry()">
+            {{ 'verify.retry' | t: language() }}
+          </button>
+          <a class="button button--outline" routerLink="/verify">
+            {{ 'notFound.link' | t: language() }}
+          </a>
+        </div>
+      </section>
+    }
+  }
+</div>

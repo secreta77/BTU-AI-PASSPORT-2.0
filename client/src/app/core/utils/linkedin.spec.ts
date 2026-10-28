@@ -5,9 +5,11 @@ function passportWith(overrides: {
   passportId?: string;
   verificationCode?: string;
   issuedAt?: string;
+  publicToken?: string;
 }): LinkedInPassport {
   return {
     passportId: overrides.passportId ?? 'BTU-AI-000125',
+    publicToken: overrides.publicToken,
     latest: {
       verificationCode: overrides.verificationCode ?? 'BTU-V-AAAA-1111',
       issuedAt: overrides.issuedAt ?? '2026-10-21T10:15:00.000Z',
@@ -36,6 +38,24 @@ describe('buildLinkedInAddUrl', () => {
     expect(params.get('issueMonth')).toBe('10');
     expect(params.get('certUrl')).toBe(`${SITE_URL}/verify/BTU-V-AAAA-1111`);
     expect(params.get('certId')).toBe('BTU-AI-000125');
+  });
+
+  it('uses the permanent /p/ link when the passport has a publicToken', () => {
+    const params = paramsOf(buildLinkedInAddUrl(passportWith({ publicToken: 'demo-token-123' })));
+
+    expect(params.get('certUrl')).toBe(`${SITE_URL}/p/demo-token-123`);
+  });
+
+  it('encodes the publicToken inside the /p/ link', () => {
+    const params = paramsOf(buildLinkedInAddUrl(passportWith({ publicToken: 'a b/c' })));
+
+    expect(params.get('certUrl')).toBe(`${SITE_URL}/p/a%20b%2Fc`);
+  });
+
+  it('falls back to /verify/<code> when there is no publicToken', () => {
+    const params = paramsOf(buildLinkedInAddUrl(passportWith({})));
+
+    expect(params.get('certUrl')).toBe(`${SITE_URL}/verify/BTU-V-AAAA-1111`);
   });
 
   it('uses the production site for certUrl, with one slash before verify', () => {

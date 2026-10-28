@@ -21,6 +21,7 @@ export const ka = {
   'seo.description':
     'BTU-ს AI უნარების ციფრული პასპორტის გადამოწმება: QR-ით ან კოდით, ბლოკჩეინზე დამოწმებული.',
   'seo.title.verify': 'პასპორტის გადამოწმება',
+  'seo.title.publicLink': 'პასპორტის გახსნა',
   'seo.title.login': 'შესვლა',
   'seo.title.myPassport': 'ჩემი პასპორტი',
   'seo.title.admin': 'ადმინისტრირება',
@@ -53,6 +54,9 @@ export const ka = {
   'verify.notFound.text': 'ასეთი კოდი ვერ მოიძებნა. შეამოწმეთ, სწორად არის თუ არა შეყვანილი.',
   'verify.error.title': 'სერვერის შეცდომა',
   'verify.error.text': 'გადამოწმება ახლა ვერ ხერხდება. სცადეთ მოგვიანებით.',
+  'publicLink.notFound.title': 'პასპორტი ვერ მოიძებნა',
+  'publicLink.notFound.text': 'ეს ბმული არ არსებობს ან არასწორია.',
+  'publicLink.error.text': 'ბმულის გახსნა ახლა ვერ ხერხდება.',
   'verify.retry': 'სცადეთ ხელახლა',
 
   'verify.chain.title': 'ბლოკჩეინზე დამოუკიდებლად შემოწმდა',

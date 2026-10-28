@@ -1,4 +1,5 @@
 import { Passport } from '../models/passport.model';
+import { MOCK_PUBLIC_TOKEN } from './mock-verify.data';
 
 // Mock student login and passport (development only, see environment.useMockApi).
 export const MOCK_OTP_CODE = '123456';
@@ -11,6 +12,7 @@ export const MOCK_EMAIL_NO_PASSPORT = 'new@example.org'; // passport -> 404 PASS
 
 export const MOCK_PASSPORT: Passport = {
   passportId: 'BTU-AI-000125',
+  publicToken: MOCK_PUBLIC_TOKEN,
   firstName: 'Giorgi',
   lastName: 'Kapanadze',
   program: 'Computer Science',
