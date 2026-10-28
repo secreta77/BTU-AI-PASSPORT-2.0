@@ -13,13 +13,13 @@ import {
   SyncStatus,
 } from '../models/admin.model';
 import { OtpRequestResponse, OtpVerifyResponse } from '../models/auth.model';
-import { Passport, PdfDownload } from '../models/passport.model';
+import { Passport, PdfDownload, PublicPassportLink } from '../models/passport.model';
 import { Version } from '../models/version.model';
 import { VerifyInfo } from '../models/verify.model';
 import { AuthService } from './auth.service';
 import { MockAdminApiService } from './mock-admin-api.service';
 import { MOCK_DELAY_MS, mockHttpError } from './mock-http-error';
-import { MOCK_VERIFY_INFO } from './mock-verify.data';
+import { MOCK_CODE_LATEST, MOCK_PUBLIC_TOKEN, MOCK_VERIFY_INFO } from './mock-verify.data';
 import {
   MOCK_EMAIL_LOCKED,
   MOCK_EMAIL_NO_PASSPORT,
@@ -41,6 +41,16 @@ export class ApiService {
       return this.getMockVerifyInfo(code);
     }
     return this.http.get<VerifyInfo>(`${environment.apiUrl}/verify/${encodeURIComponent(code)}`);
+  }
+
+  // Permanent link /p/:token -> code of the latest version. Unknown token -> 404 PASSPORT_NOT_FOUND
+  getPublicPassport(token: string): Observable<PublicPassportLink> {
+    if (environment.useMockApi) {
+      return this.getMockPublicPassport(token);
+    }
+    return this.http.get<PublicPassportLink>(
+      `${environment.apiUrl}/public/passport/${encodeURIComponent(token)}`,
+    );
   }
 
   // The answer is always { ok: true }, also for unknown emails
@@ -190,6 +200,13 @@ export class ApiService {
       return of(info).pipe(delay(MOCK_DELAY_MS));
     }
     return this.mockError(404, API_ERROR_CODE.CODE_NOT_FOUND, 'Verification code not found');
+  }
+
+  private getMockPublicPassport(token: string): Observable<PublicPassportLink> {
+    if (token === MOCK_PUBLIC_TOKEN) {
+      return of({ latestCode: MOCK_CODE_LATEST }).pipe(delay(MOCK_DELAY_MS));
+    }
+    return this.mockError(404, API_ERROR_CODE.PASSPORT_NOT_FOUND, 'Passport not found');
   }
 
   // The mock token contains the email, so the passport call knows who is logged in

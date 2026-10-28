@@ -23,6 +23,7 @@ export const en: Translations = {
   'seo.description':
     'Verify a BTU AI Skills Digital Passport by QR or code, anchored on the blockchain.',
   'seo.title.verify': 'Verify a passport',
+  'seo.title.publicLink': 'Opening passport',
   'seo.title.login': 'Log in',
   'seo.title.myPassport': 'My passport',
   'seo.title.admin': 'Admin',
@@ -55,6 +56,9 @@ export const en: Translations = {
   'verify.notFound.text': 'This code was not found. Please check that it is typed correctly.',
   'verify.error.title': 'Server error',
   'verify.error.text': 'Verification is not possible right now. Please try again later.',
+  'publicLink.notFound.title': 'Passport not found',
+  'publicLink.notFound.text': 'This link does not exist or is not correct.',
+  'publicLink.error.text': 'The link cannot be opened right now.',
   'verify.retry': 'Try again',
 
   'verify.chain.title': 'Independently checked on the blockchain',

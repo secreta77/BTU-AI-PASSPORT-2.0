@@ -11,6 +11,8 @@ const MOCK_CHAIN = {
 
 export const MOCK_CODE_LATEST = 'BTU-V-AAAA-1111';
 export const MOCK_CODE_OUTDATED = 'BTU-V-BBBB-2222';
+// Permanent-link token that the mock API knows (any other token is a 404)
+export const MOCK_PUBLIC_TOKEN = 'demo-token-123';
 export const MOCK_CODE_UNKNOWN = 'BTU-V-ZZZZ-0000';
 
 // Version 1 has 3 skills, the latest version adds a fourth one

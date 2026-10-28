@@ -19,6 +19,7 @@ export interface PassportLatestVersion {
 
 export interface Passport {
   passportId: string;
+  publicToken?: string; // permanent link /p/:token; missing until the server sends it
   firstName: string;
   lastName: string;
   program: string;
@@ -27,6 +28,11 @@ export interface Passport {
   firstIssued: string; // YYYY-MM-DD
   latest: PassportLatestVersion;
   skills: PassportSkill[];
+}
+
+// Answer of GET /api/public/passport/:token
+export interface PublicPassportLink {
+  latestCode: string;
 }
 
 // Result of GET /api/student/passport/pdf: the file and the name the server chose
