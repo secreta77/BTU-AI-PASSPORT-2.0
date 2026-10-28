@@ -8,6 +8,12 @@ import { AppError } from './appError.js';
 
 const GENERIC_SERVER_MESSAGE = 'Something went wrong on the server';
 
+// The permanent link token is a secret: it must not reach the server log, not even when the lookup itself fails.
+const PUBLIC_TOKEN_IN_URL = /(\/api\/public\/passport\/)[^/?#]*/i;
+export function hideSecretsInUrl(url) {
+  return url.replace(PUBLIC_TOKEN_IN_URL, '$1:token');
+}
+
 // For a path that no route handles (wrong URL or wrong method). Put it after all routers.
 export function notFoundHandler(req, res, next) {
   next(new AppError(ERROR_CODE.NOT_FOUND, `No such endpoint: ${req.method} ${req.path}`));
@@ -21,7 +27,7 @@ export function createErrorHandler(logError = console.error) {
     }
     const answer = describeError(error);
     if (answer.status >= 500) {
-      logError(`${req.method} ${req.originalUrl} failed:`, error);
+      logError(`${req.method} ${hideSecretsInUrl(req.originalUrl)} failed:`, error);
     }
     return res.status(answer.status).json({ error: { code: answer.code, message: answer.message } });
   };

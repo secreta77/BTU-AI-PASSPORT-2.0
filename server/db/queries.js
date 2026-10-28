@@ -378,11 +378,12 @@ export async function findStudentByEmail(email, db = pool) {
 }
 
 // The passport of one student with the data of the student, or null if the student has no passport.
+// publicToken is the secret of the permanent link /p/:token: only the owner (and the page that shows the link) may get it.
 // `latest` is null while no version has been issued yet (the passport row exists, the PDF does not).
 // latest = { versionId, version, verificationCode, issuedAt, txHash, pdfPath }
 export async function findStudentPassport(studentId, db = pool) {
   const { rows } = await db.query(
-    `SELECT p.passport_id, p.first_issued_at AS first_issued,
+    `SELECT p.passport_id, p.first_issued_at AS first_issued, p.public_token,
             s.student_id, s.first_name, s.last_name, s.program, s.education_level, s.status AS student_status,
             v.id AS version_id, v.version, v.verification_code, v.issued_at, v.tx_hash, v.pdf_path
      FROM passports p
@@ -408,6 +409,7 @@ export async function findStudentPassport(studentId, db = pool) {
       };
   return {
     passportId: row.passportId,
+    publicToken: row.publicToken,
     studentId: row.studentId,
     firstName: row.firstName,
     lastName: row.lastName,
@@ -417,6 +419,20 @@ export async function findStudentPassport(studentId, db = pool) {
     firstIssued: row.firstIssued,
     latest,
   };
+}
+
+// The code of the NEWEST issued version of the passport that owns this public token, or null.
+// null = no such token, or the passport has no issued version yet: the caller cannot tell the two apart (and must not).
+// The token is only ever a $1 parameter. Compared by the unique index, so this is one lookup by an unguessable value.
+export async function findLatestCodeByPublicToken(publicToken, db = pool) {
+  const { rows } = await db.query(
+    `SELECT v.verification_code
+     FROM passports p
+     JOIN passport_versions v ON v.passport_id = p.passport_id AND v.status = $2
+     WHERE p.public_token = $1`,
+    [publicToken, VERSION_STATUS.LATEST],
+  );
+  return rows.length === 0 ? null : rows[0].verification_code;
 }
 
 // Skills that are already in an issued passport (version_id is set), oldest dateEarned first.

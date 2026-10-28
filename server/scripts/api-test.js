@@ -3,10 +3,11 @@
 // The student login runs through the REAL login code and JWT check: only the database, the mail and Storage are fake.
 // It never touches the real database, Storage or chain, so it is safe to run any time.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createApp } from '../app.js';
 import { requestOtp, verifyOtp } from '../auth/otpService.js';
 import { config } from '../config.js';
-import { findVersionByCode } from '../db/queries.js';
+import { findLatestCodeByPublicToken, findVersionByCode } from '../db/queries.js';
 import { sendPdf } from '../routes/sendPdf.js';
 import { createSyncRunner } from '../sync/syncRunner.js';
 import { createFakeLoginWorld } from './helpers/fakeLogin.js';
@@ -62,9 +63,14 @@ const students = [
   { studentId: 'BTU-T-0003', firstName: 'Ana', lastName: 'Gelashvili', email: 'ana@example.org' },
   { studentId: 'BTU-T-0004', firstName: 'Luka', lastName: 'Noghaideli', email: 'luka@example.org' },
 ];
+const PUBLIC_TOKENS = {
+  'BTU-T-0001': 'q3Vx_9LmT2sA-ZkR7pWb4NfYc8HdE1uJgS6oIx0ZqV5',
+  'BTU-T-0002': 'Hn7Rk2Vt9xLq-4BwYzP_3sEd6MgJf1UaCo8iTy0KbXe',
+  'BTU-T-0004': 'b2Fm6Wz-Jx9Qp3LdNr_8TcYh4SvKe1AgUo5IiMy7ZtR',
+};
 function makePassport(student, passportId, latest) {
   return {
-    passportId, studentId: student.studentId, firstName: student.firstName, lastName: student.lastName,
+    passportId, publicToken: PUBLIC_TOKENS[student.studentId], studentId: student.studentId, firstName: student.firstName, lastName: student.lastName,
     program: 'Computer Science', educationLevel: "Bachelor's", studentStatus: 'Active', firstIssued: '2026-10-01', latest,
   };
 }
@@ -109,7 +115,7 @@ const syncLogRows = [
   { id: 40, sheetRow: null, recordId: null, studentId: null, level: 'info', message: 'Sync finished: 60 rows read', createdAt: ISSUED_AT },
 ];
 
-const world = { lookups: [], logged: [], failLookup: null };
+const world = { lookups: [], logged: [], failLookup: null, tokenLookups: [], latestCodeByToken: new Map() };
 // What the database returns for the skills dropdown. `internalNote` is not in docs/api.md: it must never reach the answer.
 const adminSkillRows = [
   { skillId: 'SKL-001', name: 'AI Literacy', category: 'AI Skill', description: 'Fundamentals.', internalNote: 'x' },
@@ -170,6 +176,14 @@ const app = createApp({
       studentWorld.downloads.push(pdfPath);
       if (studentWorld.failDownload) throw new Error(`Storage download failed for ${pdfPath}: bucket unreachable`);
       return PDF_BYTES;
+    },
+  },
+  public: {
+    // Like the real function: the newest code of the passport behind the token, null for an unknown token or no version yet
+    async findLatestCodeByPublicToken(token) {
+      world.tokenLookups.push(token);
+      if (world.failLookup) throw world.failLookup;
+      return world.latestCodeByToken.get(token) ?? null;
     },
   },
   verify: {
@@ -412,6 +426,7 @@ await scenario('the server does not say which framework it runs on', async () =>
 
 const EXPECTED_PASSPORT = {
   passportId: 'BTU-AI-000125',
+  publicToken: PUBLIC_TOKENS['BTU-T-0001'],
   firstName: 'Giorgi',
   lastName: 'Kapanadze',
   program: 'Computer Science',
@@ -452,6 +467,137 @@ await scenario('student passport: the exact JSON of docs/api.md with stamp codes
   for (const secret of ['giorgi@example.org', 'pdfPath', 'v2-BTU-V-AAAA-2222.pdf', 'versionId', 'BTU-T-0001']) {
     assert(!result.text.includes(secret), `${secret} is in the answer`);
   }
+});
+
+await scenario('student passport: publicToken is the token of the logged-in student, different for every student', async () => {
+  const giorgi = await call('/api/student/passport', bearer(await login('giorgi@example.org')));
+  assert.equal(giorgi.json.publicToken, PUBLIC_TOKENS['BTU-T-0001']);
+  assert.match(giorgi.json.publicToken, /^[A-Za-z0-9_-]{22,64}$/);
+  const luka = await call('/api/student/passport', bearer(await login('luka@example.org')));
+  assert.equal(luka.json.publicToken, PUBLIC_TOKENS['BTU-T-0004']);
+  assert.notEqual(luka.json.publicToken, giorgi.json.publicToken);
+  assert(!luka.text.includes(PUBLIC_TOKENS['BTU-T-0001']), "another student's token is in the answer");
+  assertError(await call('/api/student/passport'), 401, 'UNAUTHORIZED'); // still needs a login
+});
+
+// ---------- Permanent link: GET /api/public/passport/:token ----------
+
+const TOKEN_GIORGI = PUBLIC_TOKENS['BTU-T-0001'];
+const TOKEN_UNKNOWN = 'Zz9Yy8Xx7Ww6Vv5Uu4Tt3Ss2Rr1Qq0Pp-_Oo'; // valid format, nobody owns it
+
+await scenario('public link: a known token answers with the code of the newest version, and nothing else', async () => {
+  world.latestCodeByToken.set(TOKEN_GIORGI, 'BTU-V-AAAA-2222');
+  const result = await call(`/api/public/passport/${TOKEN_GIORGI}`);
+  assert.equal(result.status, 200);
+  assert.match(result.headers.get('content-type'), /application\/json/);
+  assert.equal(result.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(result.json, { latestCode: 'BTU-V-AAAA-2222' });
+  assert.equal(world.tokenLookups.at(-1), TOKEN_GIORGI);
+  for (const secret of ['Giorgi', 'Kapanadze', 'example.org', 'BTU-T-0001', 'BTU-AI-000125']) {
+    assert(!result.text.includes(secret), `${secret} is in the answer`);
+  }
+});
+
+await scenario('public link: the same token gives the NEW code after a new version is issued', async () => {
+  world.latestCodeByToken.set(TOKEN_GIORGI, 'BTU-V-AAAA-2222');
+  assert.equal((await call(`/api/public/passport/${TOKEN_GIORGI}`)).json.latestCode, 'BTU-V-AAAA-2222');
+  world.latestCodeByToken.set(TOKEN_GIORGI, 'BTU-V-CCCC-4444');
+  assert.equal((await call(`/api/public/passport/${TOKEN_GIORGI}`)).json.latestCode, 'BTU-V-CCCC-4444');
+  world.latestCodeByToken.delete(TOKEN_GIORGI);
+});
+
+await scenario('public link: a well-formed token nobody owns is 404 PASSPORT_NOT_FOUND, and the answer does not repeat it', async () => {
+  const result = await call(`/api/public/passport/${TOKEN_UNKNOWN}`);
+  assertError(result, 404, 'PASSPORT_NOT_FOUND');
+  assert(!result.text.includes(TOKEN_UNKNOWN), 'the token is repeated in the answer');
+});
+
+await scenario('public link: a token is case sensitive, so the lower case version is another (unknown) token', async () => {
+  world.latestCodeByToken.set(TOKEN_GIORGI, 'BTU-V-AAAA-2222');
+  assert.notEqual(TOKEN_GIORGI, TOKEN_GIORGI.toLowerCase());
+  assertError(await call(`/api/public/passport/${TOKEN_GIORGI.toLowerCase()}`), 404, 'PASSPORT_NOT_FOUND');
+  assert.equal(world.tokenLookups.at(-1), TOKEN_GIORGI.toLowerCase(), 'the token must be used exactly as it came');
+  world.latestCodeByToken.delete(TOKEN_GIORGI);
+});
+
+await scenario('public link: a wrong format is 400 INVALID_TOKEN_FORMAT and the database is not asked', async () => {
+  const before = world.tokenLookups.length;
+  const bad = [
+    'abc', 'a'.repeat(21), 'a'.repeat(65), // too short, too long
+    `${'a'.repeat(21)}.`, `${'a'.repeat(21)}+`, `${'a'.repeat(21)}=`, `${'a'.repeat(21)}%20`, `${'a'.repeat(21)}'`, // characters outside base64url
+    '%E1%83%90'.repeat(8), // Georgian letters
+  ];
+  for (const token of bad) {
+    const result = await call(`/api/public/passport/${token}`);
+    assertError(result, 400, 'INVALID_TOKEN_FORMAT');
+    assert(!result.text.includes(token), `the token ${token} is repeated in the answer`);
+  }
+  assert.equal(world.tokenLookups.length, before, 'the database was asked for a malformed token');
+});
+
+await scenario('public link: the longest and the shortest allowed tokens are looked up', async () => {
+  for (const token of ['a'.repeat(22), 'B'.repeat(64), `${'c'.repeat(20)}-_`]) {
+    assertError(await call(`/api/public/passport/${token}`), 404, 'PASSPORT_NOT_FOUND');
+    assert.equal(world.tokenLookups.at(-1), token);
+  }
+});
+
+await scenario('public link: a database failure is 500 with a generic text, and the token is NOT in the log', async () => {
+  world.failLookup = new Error('connection to db.internal:5432 failed');
+  try {
+    const result = await call(`/api/public/passport/${TOKEN_GIORGI}?x=1`);
+    assertError(result, 500, 'INTERNAL_ERROR');
+    assert(!result.text.includes(TOKEN_GIORGI), 'the token is in the answer');
+    const logLine = world.logged.at(-1);
+    assert(logLine.includes('db.internal'), 'the error was not logged');
+    assert(logLine.includes('/api/public/passport/:token'), `the log line should hide the token: ${logLine}`);
+    assert(!world.logged.some((line) => line.includes(TOKEN_GIORGI)), 'the token is in the log');
+  } finally {
+    world.failLookup = null;
+  }
+});
+
+await scenario('public link: only GET on the full path exists; everything else is 404 NOT_FOUND', async () => {
+  assertError(await call(`/api/public/passport/${TOKEN_GIORGI}`, { method: 'POST' }), 404, 'NOT_FOUND');
+  assertError(await call('/api/public/passport/'), 404, 'NOT_FOUND');
+  assertError(await call('/api/public/passport'), 404, 'NOT_FOUND');
+  assertError(await call('/api/public'), 404, 'NOT_FOUND');
+  assertError(await call(`/api/public/passport/${TOKEN_GIORGI}/extra`), 404, 'NOT_FOUND');
+});
+
+await scenario('public link: findLatestCodeByPublicToken asks once, with the token as a parameter, and reads no personal data', async () => {
+  const calls = [];
+  const fakeDb = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      return { rows: params[0] === TOKEN_GIORGI ? [{ verification_code: 'BTU-V-AAAA-2222' }] : [] };
+    },
+  };
+  assert.equal(await findLatestCodeByPublicToken(TOKEN_GIORGI, fakeDb), 'BTU-V-AAAA-2222');
+  assert.equal(await findLatestCodeByPublicToken(TOKEN_UNKNOWN, fakeDb), null);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].params, [TOKEN_GIORGI, 'latest']);
+  assert(!calls[0].sql.includes(TOKEN_GIORGI), 'the token must be a parameter, not text inside the SQL');
+  assert.match(calls[0].sql, /p\.public_token = \$1/);
+  assert(!/first_name|last_name|email|student_id/.test(calls[0].sql), 'the public lookup must not read personal data');
+});
+
+await scenario('public link: schema.sql and the migration create the same column, the same default and the same checks', async () => {
+  const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
+  const migration = readFileSync(new URL('../db/migrations/2026-10-28-public-token.sql', import.meta.url), 'utf8');
+  const defaultOf = (text) => text.match(/DEFAULT \((rtrim\(translate\(.*?'='\))\)/s)?.[1].replace(/\s+/g, ' ');
+  assert(defaultOf(schema), 'schema.sql has no public_token default');
+  assert.equal(defaultOf(migration), defaultOf(schema), 'the DEFAULT differs between schema.sql and the migration');
+  for (const text of [schema, migration]) {
+    assert.match(text, /\^\[A-Za-z0-9_-\]\{22,64\}\$/);
+    assert.match(text, /gen_random_uuid\(\)/);
+  }
+  assert.match(schema, /public_token\s+text NOT NULL UNIQUE/);
+  assert.match(migration, /ADD COLUMN public_token text NOT NULL/);
+  assert.match(migration, /ADD CONSTRAINT passports_public_token_key UNIQUE \(public_token\)/);
+  assert.match(migration, /^BEGIN;$/m);
+  assert.match(migration, /^COMMIT;$/m);
+  assert(!/DROP|DELETE|TRUNCATE|UPDATE\s/i.test(migration.replace(/--.*$/gm, '')), 'the migration must only add things');
 });
 
 await scenario('student PDF: the latest version as a download, not cached, with a readable file name', async () => {

@@ -46,6 +46,19 @@ The page combines this answer with the contract read in the browser (see "Result
 
 **Result logic (client).** `404` → `UNKNOWN_CODE`. With an uploaded PDF: its SHA-256 differs from the contract `docHash` → `MODIFIED`; equal and `status` is `latest` → `AUTHENTIC_LATEST`; equal and `superseded` → `AUTHENTIC_OUTDATED`. Without a PDF the page only shows that the record exists.
 
+### GET /api/public/passport/:token
+The permanent link of a passport (`/p/:token`, the one that goes on LinkedIn). It answers with the code of the **newest** version, so the link keeps working after new versions are issued; the page then sends the visitor to `/verify/:code`. No personal data.
+
+`200`
+```json
+{ "latestCode": "BTU-V-7F3K-92QX" }
+```
+- `:token` is the student's `publicToken` (see `GET /api/student/passport`): 22 to 64 characters from `A-Z a-z 0-9 - _`. It is **case sensitive** and is used exactly as it came.
+- The token is random (about 240 bits), is created once with the passport and never changes. It is a secret of the link: the server never writes it to the log (a failing request is logged as `/api/public/passport/:token`) and never repeats it in an answer.
+- `no-store`: the answer changes when a new version is issued.
+- Errors: `400 INVALID_TOKEN_FORMAT` (wrong length or characters; the database is not asked), `404 PASSPORT_NOT_FOUND` (nobody has this token, or the passport has no issued version yet: the two cases look the same on purpose).
+- There is no rate limit on this endpoint (as on `/api/verify/:code`; the project has no rate limiter yet). The protection is the size of the token: guessing one is not possible.
+
 ## Student (login with email OTP)
 
 ### POST /api/student/otp/request
@@ -70,6 +83,7 @@ The logged-in student's own latest passport.
 ```json
 {
   "passportId": "BTU-AI-000125",
+  "publicToken": "q3Vx_9LmT2sA-ZkR7pWb4NfYc8HdE1uJgS6oIx0ZqV5",
   "firstName": "Giorgi",
   "lastName": "Kapanadze",
   "program": "Computer Science",
@@ -95,6 +109,7 @@ The logged-in student's own latest passport.
   ]
 }
 ```
+- `publicToken`: the secret of the student's permanent link `/p/:token` (see `GET /api/public/passport/:token`). Only the owner gets it, only from this endpoint.
 - `skills`: all skills already issued to the student, oldest `dateEarned` first. `earnedThrough` is `null` for now: the Sheet has no such column (open question 1).
 - Errors: `401 UNAUTHORIZED`, `404 PASSPORT_NOT_FOUND` (the student has no passport, or the first version is not issued yet).
 
@@ -265,6 +280,7 @@ Sorted by `skillId`. `category` is one of `AI Skill`, `AI Applied Skill`, `AI Ad
 |---|---|---|
 | 400 | `INVALID_REQUEST` | missing or invalid body / query value |
 | 400 | `INVALID_CODE_FORMAT` | verification code is not `BTU-V-XXXX-XXXX` |
+| 400 | `INVALID_TOKEN_FORMAT` | public link token is not 22 to 64 characters of `A-Z a-z 0-9 - _` |
 | 401 | `UNAUTHORIZED` | missing, invalid or expired student token / admin key |
 | 401 | `INVALID_OTP` | wrong code, unknown email, or no code requested |
 | 401 | `OTP_EXPIRED` | the code is older than 10 minutes |

@@ -61,6 +61,8 @@ export const ID_PATTERN = {
   RECORD_ID: /^REC-\d{4}$/,
   PASSPORT_ID: /^BTU-AI-\d{6}$/,
   VERIFICATION_CODE: /^BTU-V-[A-Z0-9]{4}-[A-Z0-9]{4}$/,
+  // The secret of /p/:token: base64url characters, at least 22 (16 bytes). Case matters, so it is never changed to upper case.
+  PUBLIC_TOKEN: /^[A-Za-z0-9_-]{22,64}$/,
 };
 
 export const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -76,6 +78,7 @@ export const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+$/;
 export const ERROR_CODE = {
   INVALID_REQUEST: 'INVALID_REQUEST',
   INVALID_CODE_FORMAT: 'INVALID_CODE_FORMAT',
+  INVALID_TOKEN_FORMAT: 'INVALID_TOKEN_FORMAT',
   NOT_FOUND: 'NOT_FOUND',
   UNAUTHORIZED: 'UNAUTHORIZED',
   INVALID_OTP: 'INVALID_OTP',
@@ -94,6 +97,7 @@ export const ERROR_CODE = {
 export const HTTP_STATUS_BY_ERROR_CODE = {
   [ERROR_CODE.INVALID_REQUEST]: 400,
   [ERROR_CODE.INVALID_CODE_FORMAT]: 400,
+  [ERROR_CODE.INVALID_TOKEN_FORMAT]: 400,
   [ERROR_CODE.NOT_FOUND]: 404,
   [ERROR_CODE.UNAUTHORIZED]: 401,
   [ERROR_CODE.INVALID_OTP]: 401,

@@ -41,6 +41,7 @@ export function createStudentRouter(deps = {}) {
 
     res.json({
       passportId: passport.passportId,
+      publicToken: passport.publicToken,
       firstName: passport.firstName,
       lastName: passport.lastName,
       program: passport.program,
