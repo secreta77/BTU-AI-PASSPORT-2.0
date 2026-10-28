@@ -66,6 +66,15 @@ await check('Database', async () => {
   }
   results.push(ok('Tables', `all ${REQUIRED_TABLES.length} tables exist`));
 
+  // An older database has no passports.public_token until db/migrations/2026-10-28-public-token.sql is run.
+  // The server reads it, so a missing column would break GET /api/student/passport and /api/public/passport/:token.
+  const { rows: tokenColumn } = await pool.query(
+    "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'passports' AND column_name = 'public_token'",
+  );
+  results.push(tokenColumn.length === 1
+    ? ok('Public link token', 'passports.public_token exists')
+    : { status: STATUS.FAIL, label: 'Public link token', detail: 'passports.public_token is missing. Run server/db/migrations/2026-10-28-public-token.sql in the Supabase SQL Editor' });
+
   const { rows } = await pool.query(
     `SELECT (SELECT count(*) FROM students)::int AS students,
             (SELECT count(*) FROM passport_versions)::int AS versions,

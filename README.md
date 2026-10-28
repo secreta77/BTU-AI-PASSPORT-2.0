@@ -24,7 +24,7 @@ Google Sheets → sync → validate → PDF → SHA-256 → blockchain → DB le
 ## Setup
 1. `cd server && npm install`
 2. Copy `server/.env.example` to `server/.env` and fill in the values
-3. Run `server/db/schema.sql` on the PostgreSQL database
+3. Run `server/db/schema.sql` on the PostgreSQL database (a NEW database). A database that already exists is updated with the files of `server/db/migrations/`, one by one in date order, in the Supabase SQL Editor, before the matching server version is deployed
 4. `npm run dev`
 
 ## Structure

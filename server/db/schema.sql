@@ -22,11 +22,17 @@ CREATE TABLE skills (
   description  text NOT NULL
 );
 
+-- public_token is the secret part of the permanent link /p/:token (LinkedIn). It is random, never changes and is not
+-- derived from anything else. The DEFAULT makes the database create it (43 base64url characters from 2 random UUIDs,
+-- about 240 bits), so every code path that inserts a passport gets one. The same expression is in
+-- db/migrations/2026-10-28-public-token.sql, which adds the column to a database that already exists.
 CREATE TABLE passports (
   passport_id      text PRIMARY KEY CHECK (passport_id ~ '^BTU-AI-[0-9]{6}$'),
   student_id       text NOT NULL UNIQUE REFERENCES students (student_id),
   first_issued_at  date NOT NULL,
-  created_at       timestamptz NOT NULL DEFAULT now()
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  public_token     text NOT NULL UNIQUE CHECK (public_token ~ '^[A-Za-z0-9_-]{22,64}$')
+    DEFAULT (rtrim(translate(encode(decode(replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', ''), 'hex'), 'base64'), '+/', '-_'), '='))
 );
 
 CREATE TABLE passport_versions (
