@@ -340,12 +340,26 @@ export async function saveIssuedVersion(issued) {
 
 // Facts about one verification code, or null if the code was never issued (404 CODE_NOT_FOUND).
 // latestVersion = newest version of the SAME passport. The verify page needs it to tell "latest" from "outdated".
+// skills = the skills inside THIS version: every award issued in this version or an earlier one of the same passport
+// (earlier skills are never removed, so version 2 lists the skills of version 1 too). Oldest dateEarned first,
+// the same order as the PDF. Only skill facts: no student id, name or email. Still ONE query (a sub-select, not a second round trip).
 // Timestamps (issuedAt) come back as JS Date objects: JSON turns them into ISO 8601 text.
+// dateEarned is formatted by the database as plain "YYYY-MM-DD" text, like every other date we send.
 export async function findVersionByCode(verificationCode, db = pool) {
   const { rows } = await db.query(
     `SELECT v.id AS version_id, v.passport_id, v.version, v.verification_code, v.status,
             v.doc_hash, v.tx_hash, v.issued_at,
-            (SELECT MAX(other.version) FROM passport_versions other WHERE other.passport_id = v.passport_id) AS latest_version
+            (SELECT MAX(other.version) FROM passport_versions other WHERE other.passport_id = v.passport_id) AS latest_version,
+            COALESCE((
+              SELECT json_agg(
+                       json_build_object('skillName', k.name, 'skillCategory', k.category,
+                                         'dateEarned', to_char(a.date_earned, 'YYYY-MM-DD'))
+                       ORDER BY a.date_earned, a.record_id)
+              FROM passport_versions earlier
+              JOIN skill_awards a ON a.version_id = earlier.id
+              JOIN skills k ON k.skill_id = a.skill_id
+              WHERE earlier.passport_id = v.passport_id AND earlier.version <= v.version
+            ), '[]'::json) AS skills
      FROM passport_versions v
      WHERE v.verification_code = $1`,
     [verificationCode],
