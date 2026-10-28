@@ -15,7 +15,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { createSlowFlag } from '../../core/utils/slow-loading';
-import { FileDrop, Skeleton, StatusBadge } from '@btu/ui';
+import { FileDrop, Skeleton, SkillList, StatusBadge } from '@btu/ui';
 import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { TX_EXPLORER_URL, VERIFY_RESULT, VERSION_BADGE } from '../../core/constants';
@@ -27,6 +27,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ChainVerifyService } from '../../core/services/chain-verify.service';
 import { HashService } from '../../core/services/hash.service';
 import { MOCK_DOC_HASHES } from '../../core/services/mock-verify.data';
+import { toSkillListItem } from '../../core/utils/skill-list-item';
 
 const NOT_FOUND_HTTP_STATUS = 404;
 
@@ -52,13 +53,15 @@ interface LoadResult {
     StatusBadge,
     FileDrop,
     Skeleton,
+    SkillList,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './verify-page.html',
   styleUrl: './verify-page.scss',
 })
 export class VerifyPage {
-  protected readonly language = inject(LanguageService).language;
+  private readonly languageService = inject(LanguageService);
+  protected readonly language = this.languageService.language;
 
   protected readonly authService = inject(AuthService);
   private readonly api = inject(ApiService);
@@ -97,6 +100,13 @@ export class VerifyPage {
       ? VERSION_BADGE.LATEST
       : VERSION_BADGE.OUTDATED;
   });
+
+  // The server may not send skills yet: then the list is empty and the section is hidden
+  protected readonly skillItems = computed(() =>
+    (this.info()?.skills ?? []).map((skill) =>
+      toSkillListItem(skill.skillName, skill, (key) => this.languageService.translate(key)),
+    ),
+  );
 
   protected readonly isLatest = computed(() => this.badgeVariant() === VERSION_BADGE.LATEST);
 

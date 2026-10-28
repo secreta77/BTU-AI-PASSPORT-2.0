@@ -21,17 +21,7 @@
         <ui-skeleton variant="line-short" />
       </section>
 
-      <ul class="skills skills--skeleton">
-        @for (item of skeletonItems; track item) {
-          <li class="skill">
-            <ui-skeleton variant="square" />
-            <div class="skill__body skill__body--skeleton">
-              <ui-skeleton variant="line-short" />
-              <ui-skeleton variant="line" />
-            </div>
-          </li>
-        }
-      </ul>
+      <ui-skill-list class="skills-skeleton" [loading]="true" [earnedLabel]="''" />
     </div>
   }
   @case ('error') {
@@ -105,35 +95,10 @@
       @if (data.skills.length === 0) {
         <p class="muted">{{ 'myPassport.skills.empty' | t: language() }}</p>
       } @else {
-        <ul class="skills">
-          @for (skill of data.skills; track skill.skillId) {
-            <li class="skill">
-              <!-- Decorative: the category is written next to it -->
-              <img
-                class="skill__stamp"
-                [ngSrc]="stampUrl(skill.stampCode)"
-                [width]="stampSize(skill.stampCode).width"
-                [height]="stampSize(skill.stampCode).height"
-                alt=""
-              />
-              <div class="skill__body">
-                <h3 class="skill__name" lang="en">{{ skill.skillName }}</h3>
-                <p class="skill__meta">
-                  @if (categoryLabelKey(skill.skillCategory); as key) {
-                    {{ key | t: language() }}
-                  } @else {
-                    <span lang="en">{{ skill.skillCategory }}</span>
-                  }
-                  ·
-                  {{ 'myPassport.skills.earned' | t: language() }}
-                  <!-- Date only (YYYY-MM-DD): Angular reads it as local time, so no UTC here (it would show the day before) -->
-                  {{ skill.dateEarned | date: 'dd.MM.yyyy' }}
-                </p>
-                <p class="skill__text" lang="en">{{ skill.skillDescription }}</p>
-              </div>
-            </li>
-          }
-        </ul>
+        <ui-skill-list
+          [items]="skillItems()"
+          [earnedLabel]="'myPassport.skills.earned' | t: language()"
+        />
       }
     }
   }

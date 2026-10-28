@@ -10,6 +10,14 @@ export interface VerifyChain {
   rpcUrls: string[]; // public URLs only
 }
 
+// One skill of the passport version. The server may not send the list yet, so it is optional.
+export interface VerifySkill {
+  skillName: string;
+  skillCategory: string;
+  stampCode: string;
+  dateEarned: string; // date only: YYYY-MM-DD
+}
+
 // Answer of GET /api/verify/:code (no personal data)
 export interface VerifyInfo {
   verificationCode: string;
@@ -20,6 +28,7 @@ export interface VerifyInfo {
   issuedAt: string;
   txHash: string;
   chain: VerifyChain;
+  skills?: VerifySkill[];
 }
 
 // Content of client/public/.well-known/btu-issuer.json

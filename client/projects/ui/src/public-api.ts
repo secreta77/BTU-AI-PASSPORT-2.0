@@ -7,3 +7,4 @@ export * from './lib/skeleton/skeleton';
 export * from './lib/status-badge/status-badge';
 export * from './lib/file-drop/file-drop';
 export * from './lib/avatar/avatar';
+export * from './lib/skill-list/skill-list';

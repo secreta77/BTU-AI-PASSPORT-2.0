@@ -49,6 +49,7 @@ export const en: Translations = {
   'verify.issuedAt': 'Issue date',
   'verify.transaction': 'Transaction',
   'verify.viewOnEtherscan': 'View on Etherscan',
+  'verify.skills.title': 'Skills ({n})',
   'verify.outdatedHint': 'A newer version exists: v{n}.',
   'verify.notFound.title': 'Unknown code',
   'verify.notFound.text': 'This code was not found. Please check that it is typed correctly.',

@@ -1,4 +1,4 @@
-import { DatePipe, NgOptimizedImage } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,16 +13,9 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { buildLinkedInAddUrl } from '../../core/utils/linkedin';
 import { createSlowFlag } from '../../core/utils/slow-loading';
-import { Skeleton } from '@btu/ui';
+import { Skeleton, SkillList } from '@btu/ui';
 import { EMPTY, Observable, Subject, catchError, exhaustMap, finalize, map, of, tap } from 'rxjs';
-import {
-  API_ERROR_CODE,
-  SKILL_CATEGORY_KEY,
-  DEFAULT_STAMP_IMAGE_SIZE,
-  STAMP_IMAGE_EXTENSION,
-  STAMP_IMAGE_SIZE,
-  STAMP_IMAGE_URL,
-} from '../../core/constants';
+import { API_ERROR_CODE } from '../../core/constants';
 import type { TranslationKey } from '../../core/i18n/ka';
 import { LanguageService } from '../../core/i18n/language.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -31,6 +24,7 @@ import { Passport } from '../../core/models/passport.model';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { FileDownloadService } from '../../core/services/file-download.service';
+import { toSkillListItem } from '../../core/utils/skill-list-item';
 
 type PageState = 'loading' | 'ready' | 'error';
 
@@ -44,13 +38,14 @@ const GENERIC_ERROR_KEY: TranslationKey = 'myPassport.error.generic';
 
 @Component({
   selector: 'app-my-passport-page',
-  imports: [DatePipe, NgOptimizedImage, RouterLink, TranslatePipe, Skeleton],
+  imports: [DatePipe, RouterLink, TranslatePipe, Skeleton, SkillList],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './my-passport-page.html',
   styleUrl: './my-passport-page.scss',
 })
 export class MyPassportPage {
-  protected readonly language = inject(LanguageService).language;
+  private readonly languageService = inject(LanguageService);
+  protected readonly language = this.languageService.language;
 
   private readonly api = inject(ApiService);
   private readonly authService = inject(AuthService);
@@ -66,6 +61,13 @@ export class MyPassportPage {
   protected readonly passport = computed(() => this.loadResult().passport);
   protected readonly loadErrorKey = computed(() => this.loadResult().errorKey);
 
+  // computed reads the language signal inside translate(), so the list follows a language change
+  protected readonly skillItems = computed(() =>
+    (this.passport()?.skills ?? []).map((skill) =>
+      toSkillListItem(skill.skillId, skill, (key) => this.languageService.translate(key)),
+    ),
+  );
+
   // The "Add to LinkedIn" link: only when the passport is loaded
   protected readonly linkedInUrl = computed(() => {
     const passport = this.passport();
@@ -74,9 +76,6 @@ export class MyPassportPage {
 
   // The page title: focused when the passport arrives (tabindex=-1 in the template)
   private readonly pageTitle = viewChild<ElementRef<HTMLElement>>('pageTitle');
-
-  // Three placeholder rows while the skills list loads
-  protected readonly skeletonItems = [1, 2, 3];
 
   protected readonly downloading = signal(false);
   protected readonly downloadFailed = signal(false);
@@ -96,19 +95,6 @@ export class MyPassportPage {
         takeUntilDestroyed(),
       )
       .subscribe();
-  }
-
-  // Unknown category: show the raw text from the data instead of nothing
-  protected categoryLabelKey(category: string): TranslationKey | null {
-    return SKILL_CATEGORY_KEY[category] ?? null;
-  }
-
-  protected stampSize(stampCode: string): { width: number; height: number } {
-    return STAMP_IMAGE_SIZE[stampCode] ?? DEFAULT_STAMP_IMAGE_SIZE;
-  }
-
-  protected stampUrl(stampCode: string): string {
-    return `${STAMP_IMAGE_URL}${stampCode}${STAMP_IMAGE_EXTENSION}`;
   }
 
   protected downloadPdf(passport: Passport): void {
