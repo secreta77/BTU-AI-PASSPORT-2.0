@@ -40,14 +40,14 @@ await scenario('only the NEW skills go into the mail (awards without a version y
   assert.deepEqual(newSkillNames([{ skillName: '  A \n B ', versionId: null }, { skillName: '', versionId: null }]), ['A B']);
 });
 
-await scenario('a new version (V2): subject, passport, version, skills, sign-in and verify links, English and Georgian', () => {
+await scenario('a new version (V2): subject, passport, version, skills, my-passport and verify links, English and Georgian', () => {
   const { subject, text } = buildVersionMail({ firstName: 'Davit', passportId: 'BTU-AI-000128', version: 2, skillNames: ['Prompt Engineering Fundamentals'], siteUrl: 'https://site.example' });
   assert.equal(subject, 'Your BTU AI Skills Digital Passport has a new version (V2)');
   for (const part of ['Hello Davit,', 'BTU-AI-000128 has a new version: V2', '- Prompt Engineering Fundamentals',
-    'https://site.example/login', 'https://site.example/verify', 'გამარჯობა, Davit!', 'ახალი უნარები:']) {
+    'https://site.example/my-passport', 'LinkedIn', 'https://site.example/verify', 'გამარჯობა, Davit!', 'ახალი უნარები:']) {
     assert.ok(text.includes(part), `missing: ${part}`);
   }
-  assert.ok(!text.includes('//login') && !text.includes('undefined'));
+  assert.ok(!text.includes('//my-passport') && !text.includes('/login') && !text.includes('undefined'));
 });
 
 await scenario('the first version (V1) says "issued", not "new version"', () => {

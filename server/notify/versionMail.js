@@ -26,7 +26,8 @@ export function newSkillNames(awards) {
   return awards.filter((award) => award.versionId === null).map((award) => String(award.skillName ?? '').replace(/\s+/g, ' ').trim()).filter((name) => name !== '');
 }
 
-// English first, then Georgian. Plain text, no attachment: the student signs in to see and download the PDF.
+// English first, then Georgian. Plain text, no attachment: the link goes to /my-passport (a student who is not signed in
+// is sent to /login first), where the PDF and "Add to LinkedIn" are.
 export function buildVersionMail({ firstName, passportId, version, skillNames, siteUrl }) {
   const isFirst = version === 1;
   const subject = isFirst
@@ -49,7 +50,7 @@ export function buildVersionMail({ firstName, passportId, version, skillNames, s
     headline,
     ...(shown.length > 0 ? ['New skills:', listEnglish] : []),
     '',
-    `Sign in to see and download it: ${siteUrl}/login`,
+    `Sign in to see it, download the PDF and add it to your LinkedIn profile: ${siteUrl}/my-passport`,
     `Anyone can check that a passport is genuine: ${siteUrl}/verify`,
     '',
     '---',
@@ -58,7 +59,7 @@ export function buildVersionMail({ firstName, passportId, version, skillNames, s
     headlineGeorgian,
     ...(shown.length > 0 ? ['ახალი უნარები:', listGeorgian] : []),
     '',
-    `ნახვა და ჩამოტვირთვა: ${siteUrl}/login`,
+    `ნახვა, PDF-ის ჩამოტვირთვა და LinkedIn-ზე დამატება: ${siteUrl}/my-passport`,
     `ნებისმიერს შეუძლია პასპორტის ნამდვილობის შემოწმება: ${siteUrl}/verify`,
   ].join('\n');
   return { subject, text };
