@@ -69,4 +69,6 @@ export const config = {
   },
   jwtSecret: readText('JWT_SECRET'),
   adminApiKey: readText('ADMIN_API_KEY'),
+  // Minutes between automatic syncs. Empty or 0 = off (the default). Read in sync/autoSync.js
+  autoSyncMinutes: readNumber('AUTO_SYNC_MINUTES', null),
 };
