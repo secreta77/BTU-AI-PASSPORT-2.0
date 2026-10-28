@@ -1,10 +1,12 @@
 // The sync: reads the Sheet, saves new students and awards, issues new passport versions, writes the results back.
 //   1 read + validate   2 load what the database knows   3 plan (rowPlanner.js)
-//   4 save the plan in ONE transaction   5 issue new versions, one student at a time   6 write the Sheet back
+//   4 save the plan in ONE transaction   5 issue new versions, one student at a time (and tell the student by
+//   e-mail, optional, never part of the issue)   6 write the Sheet back
 // Everything outside (database, Google, issuing) comes in as `deps`, so tests can replace it with fakes.
 import { pathToFileURL } from 'node:url';
 import * as queries from '../db/queries.js';
 import { pool } from '../db/pool.js';
+import { notifyStudentOfNewVersion } from '../notify/versionMail.js';
 import { issuePassportVersion } from '../passport/issuePipeline.js';
 import { readRowsFromGoogleSheet } from '../sheets/reader.js';
 import { validateRows } from '../sheets/validator.js';
@@ -22,6 +24,7 @@ const defaultDeps = {
   readRows: readRowsFromGoogleSheet,
   writeSheetUpdates,
   issueVersion: issuePassportVersion,
+  notifyStudent: notifyStudentOfNewVersion, // does nothing unless NOTIFY_STUDENTS=true
   now: () => new Date(),
 };
 
@@ -51,7 +54,8 @@ export async function runSync({ bootstrap = false, report = () => {} } = {}, dep
     + `${plan.duplicates.length} duplicates, ${plan.errors.length + validationErrors.length} errors`);
 
   await savePlan(plan, validationErrors, bootstrap, deps);
-  const { versionsIssued, failures } = await issuePending(deps, report);
+  // The first run (bootstrap) loads history: its students get no mail about passports they already know
+  const { versionsIssued, failures, mailProblems } = await issuePending(deps, report, { notify: !bootstrap });
 
   const rowByRecordId = firstRowOfEachRecord(valid);
   const messageByRow = collectRowMessages([...validationErrors, ...plan.errors, ...plan.duplicates], failures, rowByRecordId);
@@ -72,7 +76,7 @@ export async function runSync({ bootstrap = false, report = () => {} } = {}, dep
     // not deduplicated and a PENDING row would add a new line on every sync.
     ...(statusCheck.skipped.length > 0 ? { skipped: statusCheck.skipped.length } : {}),
   };
-  await logEnd(summary, failures, sheetProblem, deps);
+  await logEnd(summary, failures, sheetProblem, mailProblems, deps);
   return { summary, problems };
 }
 
@@ -157,34 +161,60 @@ function highestPassportNumber(newStudents) {
 // ---------- Step 5: issue, one student at a time (blockchain nonces must not collide) ----------
 
 // Every student with awards that are not in a version yet, also those that failed in an earlier sync (retry).
-async function issuePending(deps, report) {
+async function issuePending(deps, report, { notify }) {
   const studentIds = await deps.db.findPendingStudentIds();
   const failures = []; // [{ studentId, message, recordIds }]
+  const mailProblems = []; // texts: the version is issued, but the student could not be told by e-mail
   let versionsIssued = 0;
 
   for (const [index, studentId] of studentIds.entries()) {
     report(`Issuing ${studentId} (${index + 1}/${studentIds.length})`);
-    const outcome = await issueForStudent(studentId, deps);
+    const outcome = await issueForStudent(studentId, deps, { notify });
     if (outcome.failure) {
       failures.push(outcome.failure);
       report(`  FAILED: ${outcome.failure.message}`);
     } else {
       versionsIssued += 1;
       report(`  ${outcome.result.passportId} V${outcome.result.version} issued, txHash ${outcome.result.txHash}`);
+      if (outcome.mail) {
+        report(`  student mail ${outcome.mail.text}`);
+        if (outcome.mail.problem) {
+          mailProblems.push(`${outcome.result.passportId} V${outcome.result.version}: student mail ${outcome.mail.text}`);
+        }
+      }
     }
   }
-  return { versionsIssued, failures };
+  return { versionsIssued, failures, mailProblems };
 }
 
 // A failed student does not stop the others: their awards stay without a version and are tried again next sync.
-async function issueForStudent(studentId, deps) {
+async function issueForStudent(studentId, deps, { notify }) {
   const [student] = await deps.db.findStudentsByIds([studentId]);
   const awards = await deps.db.findAwardsByStudent(studentId);
+  let result;
   try {
-    return { result: await deps.issueVersion(student, awards) };
+    result = await deps.issueVersion(student, awards);
   } catch (error) {
     const recordIds = awards.filter((award) => award.versionId === null).map((award) => award.recordId);
     return { failure: { studentId, message: error.message, recordIds } };
+  }
+  return { result, mail: notify ? await tellStudent(student, awards, result, deps) : null };
+}
+
+// The version is already issued and saved here. Whatever happens to the mail, the issue stays as it is.
+// Returns null (nothing to say), or { text, problem }. A problem is only logged: it is not an error of the sync.
+async function tellStudent(student, awards, result, deps) {
+  if (!deps.notifyStudent) {
+    return null;
+  }
+  try {
+    const outcome = await deps.notifyStudent({ student, awards, result });
+    if (outcome?.status === 'sent') {
+      return { text: 'sent', problem: false };
+    }
+    return outcome?.status === 'skipped' ? { text: `not sent (${outcome.reason})`, problem: false } : null;
+  } catch (error) {
+    return { text: `could not be sent: ${error.message}`, problem: true };
   }
 }
 
@@ -253,7 +283,7 @@ async function writeBackToSheet(allRows, untouchedRows, messageByRow, deps) {
 
 // ---------- Step 7: log ----------
 
-async function logEnd(summary, failures, sheetProblem, deps) {
+async function logEnd(summary, failures, sheetProblem, mailProblems, deps) {
   const entry = (message, level) => ({ sheetRow: null, recordId: null, studentId: null, level, message });
   await deps.db.insertSyncLog([
     ...failures.map((failure) => ({
@@ -261,6 +291,8 @@ async function logEnd(summary, failures, sheetProblem, deps) {
       studentId: failure.studentId,
     })),
     ...(sheetProblem ? [entry(sheetProblem, SYNC_LOG_LEVEL.ERROR)] : []),
+    // Only a note: the version is issued and valid, so it is not counted as an error of the sync
+    ...mailProblems.map((message) => entry(message, SYNC_LOG_LEVEL.INFO)),
     entry(formatSummary(summary), SYNC_LOG_LEVEL.INFO),
   ]);
 }

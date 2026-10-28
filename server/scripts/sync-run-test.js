@@ -514,6 +514,99 @@ await scenario('status column: only CONFIRMED rows are issued, PENDING/REJECTED 
   assert(!world.state.students.has('BTU-T-0102'), 'a PENDING row creates no student');
 });
 
+// ---------- Mail to the student (optional, never part of the issue) ----------
+
+// A notifier like the real one, but it only remembers the calls. `answer` decides what it does.
+function addNotifier(world, answer = async () => ({ status: 'sent' })) {
+  world.mails = [];
+  world.deps.notifyStudent = async (input) => {
+    world.mails.push({
+      studentId: input.student.studentId,
+      email: input.student.email,
+      version: input.result.version,
+      newRecordIds: input.awards.filter((award) => award.versionId === null).map((award) => award.recordId),
+    });
+    return answer(input);
+  };
+}
+
+function addKnownStudentSkill(world, skillId = 'SKL-009') {
+  const oldRow = realRows.find((row) => row.studentId === 'BTU-T-0001');
+  const newRow = makeRow({ ...pickStudent(oldRow), skillId, skillName: 'Data Ethics', passportId: oldRow.passportId, firstIssued: oldRow.firstIssued });
+  world.sheetRows.push(newRow);
+  return newRow;
+}
+
+await scenario('mail: one mail per issued version, to that student, for the NEW record only; a repeated sync sends none', async () => {
+  const world = await bootstrapWorld();
+  addNotifier(world);
+  const newRow = addKnownStudentSkill(world);
+
+  await runSync({}, world.deps);
+  assert.equal(world.mails.length, 1);
+  assert.deepEqual(world.mails[0], { studentId: 'BTU-T-0001', email: newRow.email, version: 2, newRecordIds: [newRow.recordId] });
+
+  await runSync({}, world.deps);
+  assert.equal(world.mails.length, 1, 'nothing new, so no new mail');
+});
+
+await scenario('mail: a mail that fails does not undo the issue: counts, Sheet and problems stay clean, the log gets one note', async () => {
+  const world = await bootstrapWorld();
+  addNotifier(world, async () => { throw new Error('Brevo answered 401: Key not found'); });
+  const newRow = addKnownStudentSkill(world);
+
+  const { summary, problems } = await runSync({}, world.deps);
+  assert.deepEqual(summary, { rowsRead: 61, newAwards: 1, versionsIssued: 1, duplicates: 0, errors: 0 });
+  assert.deepEqual(problems, []);
+  assert.equal(sheetRowOf(world, newRow.recordId).syncStatus, 'SYNCED');
+  assert.equal(sheetRowOf(world, newRow.recordId).syncedVersion, 'V2');
+  assert.deepEqual(logMessages(world, 'error'), []);
+  const notes = logMessages(world, 'info').filter((message) => message.includes('student mail'));
+  assert.equal(notes.length, 1);
+  assert.match(notes[0], /BTU-AI-\d{6} V2: student mail could not be sent: Brevo answered 401: Key not found/);
+});
+
+await scenario('mail: the first run (bootstrap) sends no mail to anyone', async () => {
+  const world = createWorld({ rows: realRows });
+  addNotifier(world);
+  const { summary } = await runSync({ bootstrap: true }, world.deps);
+  assert.equal(summary.versionsIssued, 18);
+  assert.equal(world.mails.length, 0);
+});
+
+await scenario('mail: a student whose issue failed gets no mail, the other new student does', async () => {
+  const world = await bootstrapWorld();
+  addNotifier(world);
+  world.failIssueFor.add('BTU-T-0200');
+  world.sheetRows.push(
+    makeRow({ studentId: 'BTU-T-0200', firstName: 'Nino', lastName: 'Beridze', email: 'nino@gmail.com' }),
+    makeRow({ studentId: 'BTU-T-0201', firstName: 'Ana', lastName: 'Kapanadze', email: 'ana@gmail.com' }),
+  );
+
+  const { summary } = await runSync({}, world.deps);
+  assert.equal(summary.versionsIssued, 1);
+  assert.equal(summary.errors, 1);
+  assert.deepEqual(world.mails.map((mail) => [mail.studentId, mail.version]), [['BTU-T-0201', 1]]);
+});
+
+await scenario('mail: "off" is silent and a "skipped" is only a progress line: nothing goes to the log', async () => {
+  const world = await bootstrapWorld();
+  addNotifier(world, async () => ({ status: 'off' }));
+  addKnownStudentSkill(world, 'SKL-009');
+  const lines = [];
+  await runSync({ report: (text) => lines.push(text) }, world.deps);
+  assert.equal(world.mails.length, 1);
+  assert.ok(!lines.some((line) => line.includes('student mail')), 'off says nothing');
+
+  const second = await bootstrapWorld();
+  addNotifier(second, async () => ({ status: 'skipped', reason: 'BREVO_API_KEY is not set' }));
+  addKnownStudentSkill(second, 'SKL-009');
+  const secondLines = [];
+  await runSync({ report: (text) => secondLines.push(text) }, second.deps);
+  assert.ok(secondLines.some((line) => line.includes('student mail not sent (BREVO_API_KEY is not set)')));
+  assert.deepEqual(logMessages(second, 'info').filter((message) => message.includes('student mail')), []);
+});
+
 function pickStudent(row) {
   return {
     studentId: row.studentId,
