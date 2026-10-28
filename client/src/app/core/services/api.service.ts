@@ -19,7 +19,12 @@ import { VerifyInfo } from '../models/verify.model';
 import { AuthService } from './auth.service';
 import { MockAdminApiService } from './mock-admin-api.service';
 import { MOCK_DELAY_MS, mockHttpError } from './mock-http-error';
-import { MOCK_CODE_LATEST, MOCK_PUBLIC_TOKEN, MOCK_VERIFY_INFO } from './mock-verify.data';
+import {
+  MOCK_CODE_LATEST,
+  MOCK_MIN_TOKEN_LENGTH,
+  MOCK_PUBLIC_TOKEN,
+  MOCK_VERIFY_INFO,
+} from './mock-verify.data';
 import {
   MOCK_EMAIL_LOCKED,
   MOCK_EMAIL_NO_PASSPORT,
@@ -203,6 +208,9 @@ export class ApiService {
   }
 
   private getMockPublicPassport(token: string): Observable<PublicPassportLink> {
+    if (token.length < MOCK_MIN_TOKEN_LENGTH) {
+      return this.mockError(400, API_ERROR_CODE.INVALID_REQUEST, 'Invalid token');
+    }
     if (token === MOCK_PUBLIC_TOKEN) {
       return of({ latestCode: MOCK_CODE_LATEST }).pipe(delay(MOCK_DELAY_MS));
     }

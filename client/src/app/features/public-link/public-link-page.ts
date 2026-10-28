@@ -8,6 +8,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ApiService } from '../../core/services/api.service';
 
 const NOT_FOUND_HTTP_STATUS = 404;
+// A malformed token is shown like an unknown one: the link is simply wrong
+const BAD_REQUEST_HTTP_STATUS = 400;
 
 type PageState = 'loading' | 'notFound' | 'error';
 
@@ -64,7 +66,9 @@ export class PublicLinkPage {
     return this.api.getPublicPassport(token).pipe(
       map((link) => ({ state: 'redirect' as const, code: link.latestCode })),
       catchError((error) => {
-        const state = error?.status === NOT_FOUND_HTTP_STATUS ? 'notFound' : 'error';
+        const isWrongLink =
+          error?.status === NOT_FOUND_HTTP_STATUS || error?.status === BAD_REQUEST_HTTP_STATUS;
+        const state = isWrongLink ? 'notFound' : 'error';
         return of({ state } as { state: PageState });
       }),
     );
