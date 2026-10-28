@@ -100,67 +100,13 @@
   margin-top: $space-xl;
 }
 
-.skills {
-  display: flex;
-  flex-direction: column;
-  gap: $space-sm;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.skill {
-  display: flex;
-  gap: $space-md;
-  padding: $space-md;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
-
-  // Stamps have different shapes: a fixed box, the picture is scaled to fit
-  &__stamp {
-    flex: 0 0 4rem;
-    width: auto;
-    height: auto;
-    max-width: 4rem;
-    max-height: 4rem;
-    object-fit: contain;
-
-    @include up(sm) {
-      flex-basis: 6rem;
-      max-width: 6rem;
-      max-height: 6rem;
-    }
-  }
-
-  &__body {
-    flex: 1;
-    min-width: 0;
-  }
-
-  &__name {
-    margin: 0 0 $space-xxs;
-    font-size: $font-size-large;
-  }
-
-  &__meta {
-    margin: 0 0 $space-xs;
-    color: $color-text-muted;
-    font-size: $font-size-small;
-  }
-
-  &__text {
-    margin: 0;
-  }
-}
-
-// Skeleton: same layout as the real card and list
-.card--skeleton,
-.skill__body--skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: $space-sm;
-}
-
-.skills--skeleton {
+.skills-skeleton {
   margin-top: $space-xl;
+}
+
+// Skeleton: same layout as the real card
+.card--skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
 }

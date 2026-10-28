@@ -1,0 +1,41 @@
+@if (loading()) {
+  <ul class="skills" aria-hidden="true">
+    @for (row of skeletonRows; track row) {
+      <li class="skill">
+        <ui-skeleton variant="square" />
+        <div class="skill__body skill__body--skeleton">
+          <ui-skeleton variant="line-short" />
+          <ui-skeleton variant="line" />
+        </div>
+      </li>
+    }
+  </ul>
+} @else {
+  <ul class="skills">
+    @for (item of items(); track item.id) {
+      <li class="skill">
+        <!-- Decorative: the category is written next to it -->
+        <img
+          class="skill__stamp"
+          [ngSrc]="item.stampUrl"
+          [width]="item.stampWidth"
+          [height]="item.stampHeight"
+          alt=""
+        />
+        <div class="skill__body">
+          <h3 class="skill__name" lang="en">{{ item.name }}</h3>
+          <p class="skill__meta">
+            <span [attr.lang]="item.categoryLang ?? null">{{ item.categoryLabel }}</span>
+            ·
+            {{ earnedLabel() }}
+            <!-- Date only (YYYY-MM-DD): Angular reads it as local time, so no UTC here (it would show the day before) -->
+            {{ item.dateEarned | date: 'dd.MM.yyyy' }}
+          </p>
+          @if (item.description) {
+            <p class="skill__text" lang="en">{{ item.description }}</p>
+          }
+        </div>
+      </li>
+    }
+  </ul>
+}

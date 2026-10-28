@@ -109,6 +109,18 @@
           </p>
         }
 
+        @if (skillItems().length > 0) {
+          <section class="block" aria-labelledby="skills-title">
+            <h3 id="skills-title">
+              {{ 'verify.skills.title' | t: language() : { n: skillItems().length } }}
+            </h3>
+            <ui-skill-list
+              [items]="skillItems()"
+              [earnedLabel]="'myPassport.skills.earned' | t: language()"
+            />
+          </section>
+        }
+
         @if (showChain) {
           <section class="block" aria-labelledby="chain-title">
             <h3 id="chain-title">{{ 'verify.chain.title' | t: language() }}</h3>

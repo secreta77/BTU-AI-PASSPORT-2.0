@@ -47,6 +47,7 @@ export const ka = {
   'verify.issuedAt': 'გაცემის თარიღი',
   'verify.transaction': 'ტრანზაქცია',
   'verify.viewOnEtherscan': 'იხილეთ Etherscan-ზე',
+  'verify.skills.title': 'უნარები ({n})',
   'verify.outdatedHint': 'არსებობს უფრო ახალი ვერსია: v{n}.',
   'verify.notFound.title': 'უცნობი კოდი',
   'verify.notFound.text': 'ასეთი კოდი ვერ მოიძებნა. შეამოწმეთ, სწორად არის თუ არა შეყვანილი.',

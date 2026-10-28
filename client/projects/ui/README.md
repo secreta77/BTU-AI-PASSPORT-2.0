@@ -11,6 +11,7 @@ A UI piece used in two places goes here.
 | `StatusBadge` | `ui-status-badge` | `variant`: `latest` / `outdated`, `label` (text) |
 | `Avatar` | `ui-avatar` | `name` (initials), `icon`: `user` / `admin` (when no name), `label` (accessible name) |
 | `FileDrop` | `ui-file-drop` | `dropText`, `chooseText`, `accept`, output `fileChosen` |
+| `SkillList` | `ui-skill-list` | `items` (`SkillListItem[]`: name, category label, date, stamp URL and size, optional description), `earnedLabel` (text), `loading` (skeleton rows) |
 
 Design tokens and shared styles are in `src/styles/`:
 `_variables.scss` (colors, spacing, fonts), `_mixins.scss` (breakpoints), `_base.scss` (reset),
