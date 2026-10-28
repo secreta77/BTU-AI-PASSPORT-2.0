@@ -4,7 +4,7 @@ import { Router } from 'express';
 import { config } from '../config.js';
 import { findVersionByCode } from '../db/queries.js';
 import { AppError } from '../middleware/appError.js';
-import { ERROR_CODE, ID_PATTERN } from '../shared/constants.js';
+import { ERROR_CODE, ID_PATTERN, STAMP_CODE_BY_CATEGORY } from '../shared/constants.js';
 
 const defaultDeps = {
   findVersionByCode,
@@ -53,6 +53,14 @@ export function createVerifyRouter(deps = {}) {
       latestVersion: version.latestVersion,
       issuedAt: version.issuedAt,
       txHash: version.txHash,
+      // Only these four fields of each skill leave the server (no ids, no description, no personal data).
+      // stampCode is not in the database: only constants.js knows the category mapping (Decision 12).
+      skills: (version.skills ?? []).map((skill) => ({
+        skillName: skill.skillName,
+        skillCategory: skill.skillCategory,
+        stampCode: STAMP_CODE_BY_CATEGORY[skill.skillCategory] ?? null,
+        dateEarned: skill.dateEarned,
+      })),
       chain: getChainInfo(),
     });
   });

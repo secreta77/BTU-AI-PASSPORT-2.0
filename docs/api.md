@@ -15,7 +15,7 @@ Conventions:
 ## Public (no login)
 
 ### GET /api/verify/:code
-Facts about one verification code. No personal data (no name, no email, no skills).
+Facts about one verification code, with the skills that are inside that version. No personal data (no name, no email, no student ID).
 The page combines this answer with the contract read in the browser (see "Result logic" below).
 
 `200`
@@ -28,6 +28,9 @@ The page combines this answer with the contract read in the browser (see "Result
   "latestVersion": 2,
   "issuedAt": "2026-10-21T10:15:00.000Z",
   "txHash": "0x3f1c…(64 hex)",
+  "skills": [
+    { "skillName": "AI Literacy", "skillCategory": "AI Skill", "stampCode": "BDG-AI-001", "dateEarned": "2026-09-18" }
+  ],
   "chain": {
     "chainId": 11155111,
     "contractAddress": "0x9a2B…",
@@ -36,6 +39,7 @@ The page combines this answer with the contract read in the browser (see "Result
 }
 ```
 - `status`: `latest` or `superseded`. `latestVersion` is the newest version of the same passport.
+- `skills`: the skills inside **this** version, oldest `dateEarned` first (the same order as in the PDF). Version 2 also lists the skills of version 1, because earlier skills are never removed; an old version shows only what it contained then. Only these four fields are sent: `skillName`, `skillCategory`, `stampCode` (from the category, `STAMP_CODE_BY_CATEGORY`) and `dateEarned` (`YYYY-MM-DD`). No skill ID, description or student data. It is a list, `[]` if the version has none. It comes from the same single database query as the other fields.
 - `chain` comes from `config.chain`: `chainId`, `contractAddress` and `rpcUrls` = `config.chain.publicRpcUrls` (`PUBLIC_RPC_URLS` in `server/.env`).
 - `rpcUrls` is sent to the browser, so it must contain only public URLs without keys. Never send `RPC_URLS` (`config.chain.rpcUrls`): it is for the server only and may contain keys.
 - Errors: `400 INVALID_CODE_FORMAT`, `404 CODE_NOT_FOUND`.

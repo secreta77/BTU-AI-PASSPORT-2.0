@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { createApp } from '../app.js';
 import { requestOtp, verifyOtp } from '../auth/otpService.js';
 import { config } from '../config.js';
+import { findVersionByCode } from '../db/queries.js';
 import { sendPdf } from '../routes/sendPdf.js';
 import { createSyncRunner } from '../sync/syncRunner.js';
 import { createFakeLoginWorld } from './helpers/fakeLogin.js';
@@ -30,12 +31,27 @@ const ledger = new Map([
   ['BTU-V-7F3K-92QX', {
     verificationCode: 'BTU-V-7F3K-92QX', passportId: 'BTU-AI-000125', version: 1, status: 'superseded',
     latestVersion: 2, issuedAt: ISSUED_AT, txHash: TX_HASH,
+    skills: [
+      // studentId and skillId stand for "more than the API shows": the route must not pass them on
+      { skillName: 'AI Literacy', skillCategory: 'AI Skill', dateEarned: '2026-09-18', studentId: 'BTU-T-0001', skillId: 'SKL-001' },
+    ],
     // fields that the route must NOT pass on (the database function may return more than the API shows)
     docHash: 'aa'.repeat(32), versionId: 7,
   }],
   ['BTU-V-AAAA-2222', {
     verificationCode: 'BTU-V-AAAA-2222', passportId: 'BTU-AI-000125', version: 2, status: 'latest',
     latestVersion: 2, issuedAt: ISSUED_AT, txHash: TX_HASH, docHash: 'bb'.repeat(32), versionId: 8,
+    // version 2 keeps the skills of version 1 and adds new ones, oldest dateEarned first (the database sorts them)
+    skills: [
+      { skillName: 'AI Literacy', skillCategory: 'AI Skill', dateEarned: '2026-09-18' },
+      { skillName: 'AI Workflow Automation', skillCategory: 'AI Applied Skill', dateEarned: '2026-10-01' },
+      { skillName: 'MLOps Fundamentals', skillCategory: 'AI Advanced Skill', dateEarned: '2026-10-14' },
+    ],
+  }],
+  // A row without a skills field at all (must still answer with an empty list, never crash)
+  ['BTU-V-BBBB-3333', {
+    verificationCode: 'BTU-V-BBBB-3333', passportId: 'BTU-AI-000126', version: 1, status: 'latest',
+    latestVersion: 1, issuedAt: ISSUED_AT, txHash: TX_HASH, docHash: 'cc'.repeat(32), versionId: 9,
   }],
 ]);
 
@@ -234,12 +250,65 @@ await scenario('verify: an old version gives the facts of docs/api.md, with publ
     latestVersion: 2,
     issuedAt: '2026-10-21T10:15:00.000Z',
     txHash: TX_HASH,
+    skills: [
+      { skillName: 'AI Literacy', skillCategory: 'AI Skill', stampCode: 'BDG-AI-001', dateEarned: '2026-09-18' },
+    ],
     chain: {
       chainId: 11155111,
       contractAddress: '0x7c90CbDcB0006819E5dfdfb8D36A74f0f3968509',
       rpcUrls: PUBLIC_RPC_URLS,
     },
   });
+});
+
+await scenario('verify: skills of a version are the skills up to that version, oldest first, with the stamp code of the category', async () => {
+  const result = await call('/api/verify/BTU-V-AAAA-2222');
+  assert.deepEqual(result.json.skills, [
+    { skillName: 'AI Literacy', skillCategory: 'AI Skill', stampCode: 'BDG-AI-001', dateEarned: '2026-09-18' },
+    { skillName: 'AI Workflow Automation', skillCategory: 'AI Applied Skill', stampCode: 'BDG-AI-002', dateEarned: '2026-10-01' },
+    { skillName: 'MLOps Fundamentals', skillCategory: 'AI Advanced Skill', stampCode: 'BDG-AI-003', dateEarned: '2026-10-14' },
+  ]);
+  const dates = result.json.skills.map((skill) => skill.dateEarned);
+  assert.deepEqual(dates, [...dates].sort());
+  const older = await call('/api/verify/BTU-V-7F3K-92QX');
+  assert.equal(older.json.skills.length, 1, 'the old version must not show skills of the newer one');
+});
+
+await scenario('verify: skills carry no personal data and no ids, only the four documented fields', async () => {
+  for (const code of ['BTU-V-7F3K-92QX', 'BTU-V-AAAA-2222']) {
+    const result = await call(`/api/verify/${code}`);
+    for (const skill of result.json.skills) {
+      assert.deepEqual(Object.keys(skill).sort(), ['dateEarned', 'skillCategory', 'skillName', 'stampCode']);
+    }
+    assert(!result.text.includes('BTU-T-0001'), 'a student id is in the answer');
+    assert(!result.text.includes('SKL-001'), 'a skill id is in the answer');
+  }
+});
+
+await scenario('verify: a version row without skills answers with an empty list', async () => {
+  const result = await call('/api/verify/BTU-V-BBBB-3333');
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.json.skills, []);
+});
+
+await scenario('verify: findVersionByCode asks the database once, with the code as a parameter', async () => {
+  const calls = [];
+  const fakeDb = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      return { rows: [{ version_id: 1, passport_id: 'BTU-AI-000125', version: 2, skills: [{ skillName: 'AI Literacy' }] }] };
+    },
+  };
+  const found = await findVersionByCode('BTU-V-AAAA-2222', fakeDb);
+  assert.equal(calls.length, 1, 'skills must come with the same query');
+  assert.deepEqual(calls[0].params, ['BTU-V-AAAA-2222']);
+  assert(!calls[0].sql.includes('BTU-V-AAAA-2222'), 'the code must be a $1 parameter, not text inside the SQL');
+  assert.match(calls[0].sql, /earlier\.version <= v\.version/, 'skills of later versions must not be included');
+  assert.match(calls[0].sql, /ORDER BY a\.date_earned, a\.record_id/);
+  assert(!/student_id|email|first_name|last_name/.test(calls[0].sql), 'the verify query must not read personal data');
+  assert.deepEqual(found.skills, [{ skillName: 'AI Literacy' }]);
+  assert.equal(found.passportId, 'BTU-AI-000125');
+  assert.equal(await findVersionByCode('BTU-V-ZZZZ-9999', { query: async () => ({ rows: [] }) }), null);
 });
 
 await scenario('verify: the latest version says latest', async () => {
