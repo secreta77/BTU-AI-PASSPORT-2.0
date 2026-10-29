@@ -3,8 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node index.js",
+    "test": "npm run api-test && npm run auth-test && npm run sync-test && npm run sync-run-test && npm run auto-sync-test && npm run notify-test && npm run preflight-test && npm run printable-test && npm run issue-test && npm run render-test",
     "dev": "node --watch index.js",
     "sync": "node sync/syncService.js",
     "tamper": "node scripts/tamper-pdf.js",
