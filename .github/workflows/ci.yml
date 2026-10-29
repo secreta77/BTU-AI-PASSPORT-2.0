@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npx ng build
+      # Runs the tests of both projects (app and ui library); no browser needed
+      - run: npx ng test --watch=false
+
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    # Offline tests only. config.js needs these three values to be non-empty,
+    # but the tests use fakes and never connect to them.
+    env:
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:1/ci
+      PASSPORT_REF_SALT: ci-salt
+      GOOGLE_SHEET_ID: ci-dummy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm test
